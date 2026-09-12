@@ -1,0 +1,30 @@
+{
+  "app": "npx ts-node --prefer-ts-exts bin/app.ts",
+  "watch": {
+    "include": [
+      "**"
+    ],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "node_modules"
+    ]
+  },
+  "context": {
+    "schoolName": "Burlington Montessori School",
+    "timezone": "America/New_York",
+    "reminderHour": 17,
+    "fromEmail": "vikas7shah@gmail.com",
+    "smsSenderId": "",
+    "retainData": true,
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:checkSecretUsage": true,
+    "@aws-cdk/aws-iam:minimizePolicies": true,
+    "@aws-cdk/core:target-partitions": [
+      "aws"
+    ],
+    "smsEnabled": false,
+    "alertEmail": "vikas.shah@homeoperationshub.com",
+    "budgetUsd": 10
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "@bms/api",
+  "version": "0.1.0",
+  "private": true,
+  "main": "src/index.ts",
+  "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit" },
+  "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.726.0",
+    "@aws-sdk/client-dynamodb": "^3.726.0",
+    "@aws-sdk/client-secrets-manager": "^3.726.0",
+    "@aws-sdk/client-sesv2": "^3.726.0",
+    "@aws-sdk/client-sns": "^3.726.0",
+    "@aws-sdk/lib-dynamodb": "^3.726.0",
+    "@bms/shared": "*",
+    "hono": "^4.6.16",
+    "ulid": "^2.3.0",
+    "web-push": "^3.6.7",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": { "@types/aws-lambda": "^8.10.147", "@types/web-push": "^3.6.4" }
+}

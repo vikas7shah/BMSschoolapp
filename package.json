@@ -1,0 +1,44 @@
+{
+  "name": "bms",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Bright Montessori School — parent operations app",
+  "workspaces": [
+    "packages/*",
+    "services/*",
+    "apps/*",
+    "infra"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build:shared": "npm run build -w @bms/shared",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "dev:web": "npm run dev -w @bms/web",
+    "build:web": "npm run build -w @bms/web",
+    "deploy": "npm run build:shared && npm run build:web && npm run deploy -w @bms/infra",
+    "destroy": "npm run destroy -w @bms/infra",
+    "test": "npm run test -w @bms/shared && npm run test -w @bms/web",
+    "setup": "node scripts/setup.mjs",
+    "otp": "node scripts/otp.mjs",
+    "sms-sandbox": "node scripts/sms-sandbox.mjs",
+    "reminders:dry-run": "node scripts/reminders.mjs --dry-run",
+    "reminders:run": "node scripts/reminders.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "diff": "npm run diff -w @bms/infra",
+    "verify-sender": "node scripts/verify-sender.mjs"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "@types/node": "^22.10.5",
+    "@aws-sdk/client-cloudformation": "^3.726.0",
+    "@aws-sdk/client-cloudwatch-logs": "^3.726.0",
+    "@aws-sdk/client-cognito-identity-provider": "^3.726.0",
+    "@aws-sdk/client-dynamodb": "^3.726.0",
+    "@aws-sdk/client-lambda": "^3.726.0",
+    "@aws-sdk/client-sns": "^3.726.0",
+    "@aws-sdk/lib-dynamodb": "^3.726.0",
+    "@aws-sdk/client-sesv2": "^3.726.0"
+  }
+}

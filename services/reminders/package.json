@@ -1,0 +1,8 @@
+{
+  "name": "@bms/reminders",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit" },
+  "dependencies": { "@bms/backend": "*", "@bms/shared": "*" },
+  "devDependencies": { "@types/aws-lambda": "^8.10.147" }
+}

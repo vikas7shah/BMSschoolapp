@@ -1,0 +1,55 @@
+@import 'tailwindcss';
+
+/*
+ * A warm, calm palette borrowed from Montessori materials: natural wood,
+ * cream paper and sage. Deliberately light-only — the app is used in bright
+ * classrooms and on the school run, and one committed look keeps it coherent.
+ */
+@theme {
+  --color-cream: #faf7f2;
+  --color-surface: #ffffff;
+  --color-ink: #2c2a26;
+  --color-muted: #6f6a61;
+  --color-line: #e6e0d6;
+  --color-sage: #3f6f52;
+  --color-sage-dark: #33593f;
+  --color-sage-soft: #e7efe9;
+  --color-clay: #c4643c;
+  --color-clay-soft: #fbeee7;
+  --color-sun: #d9a441;
+  --color-sun-soft: #fdf4e2;
+
+  --font-sans: ui-sans-serif, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+}
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+body {
+  /* Room for the fixed bottom navigation on phones. */
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Inputs on iOS zoom the viewport below 16px. */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
