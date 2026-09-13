@@ -18,6 +18,7 @@ new BmsStack(app, `Bms-${stage}`, {
   timezone: app.node.tryGetContext('timezone'),
   reminderHour: Number(app.node.tryGetContext('reminderHour') ?? 17),
   fromEmail: app.node.tryGetContext('fromEmail') || undefined,
+  replyTo: app.node.tryGetContext('replyTo') || undefined,
   smsSenderId: app.node.tryGetContext('smsSenderId') || undefined,
   // Flip to true once an SMS origination identity exists. Until then AWS
   // accepts every Publish and silently drops it, so the app must not pretend

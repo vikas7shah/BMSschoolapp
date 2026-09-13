@@ -62,20 +62,51 @@ try {
 console.log();
 
 // --- the address currently in use -----------------------------------------
-try {
-  const identity = await ses.send(new GetEmailIdentityCommand({ EmailIdentity: address }));
-  if (identity.VerifiedForSendingStatus) {
-    console.log(`✓ ${address} is verified and can send.`);
-    if (/@(gmail|yahoo|hotmail|outlook|icloud)\./i.test(address)) {
-      console.log('  ⚠ but it is a consumer mailbox address: SES cannot DKIM-sign for that');
-      console.log('    domain, so Gmail treats the mail as spoofed and files it as spam.');
-    }
-  } else {
-    console.log(`⏳ ${address} is registered but not verified yet.`);
-    console.log('   Check that inbox for the AWS confirmation link.');
+// A domain identity covers every address at that domain (and its subdomains
+// cover themselves), so check the domain first; an address identity is only
+// the fallback for a mailbox at a domain we do not control.
+const domain = address.split('@')[1];
+const domainReport = async (name) => {
+  const dom = await ses.send(new GetEmailIdentityCommand({ EmailIdentity: name }));
+  const dkim = dom.DkimAttributes?.Status;
+  if (dom.VerifiedForSendingStatus && dkim === 'SUCCESS') {
+    console.log(`✓ ${name} is verified with DKIM — ${address} will authenticate.`);
+    return true;
   }
-} catch (err) {
-  if (err.name !== 'NotFoundException') throw err;
-  await ses.send(new CreateEmailIdentityCommand({ EmailIdentity: address }));
-  console.log(`→ Verification email sent to ${address}. Click the link, then re-run this.`);
+  console.log(`⏳ ${name}: DKIM ${dkim ?? 'unknown'}. Add these CNAME records at the domain's DNS:`);
+  for (const t of dom.DkimAttributes?.Tokens ?? []) {
+    console.log(`     ${t}._domainkey.${name}  CNAME  ${t}.dkim.amazonses.com`);
+  }
+  console.log('   Verification usually completes within an hour of the records appearing.');
+  return false;
+};
+
+let covered = false;
+if (domain && domain !== SCHOOL_DOMAIN) {
+  try {
+    await domainReport(domain);
+    covered = true;
+  } catch (err) {
+    if (err.name !== 'NotFoundException') throw err;
+  }
+}
+
+if (!covered) {
+  try {
+    const identity = await ses.send(new GetEmailIdentityCommand({ EmailIdentity: address }));
+    if (identity.VerifiedForSendingStatus) {
+      console.log(`✓ ${address} is verified and can send.`);
+      if (/@(gmail|yahoo|hotmail|outlook|icloud)\./i.test(address)) {
+        console.log('  ⚠ but it is a consumer mailbox address: SES cannot DKIM-sign for that');
+        console.log('    domain, so Gmail treats the mail as spoofed and files it as spam.');
+      }
+    } else {
+      console.log(`⏳ ${address} is registered but not verified yet.`);
+      console.log('   Check that inbox for the AWS confirmation link.');
+    }
+  } catch (err) {
+    if (err.name !== 'NotFoundException') throw err;
+    await ses.send(new CreateEmailIdentityCommand({ EmailIdentity: address }));
+    console.log(`→ Verification email sent to ${address}. Click the link, then re-run this.`);
+  }
 }

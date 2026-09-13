@@ -28,6 +28,8 @@ export interface BmsStackProps extends cdk.StackProps {
   timezone: string;
   reminderHour: number;
   fromEmail?: string;
+  /** Where a parent's reply lands. Sending is from a send-only subdomain. */
+  replyTo?: string;
   smsSenderId?: string;
   smsEnabled: boolean;
   alertEmail: string;
@@ -87,6 +89,7 @@ export class BmsStack extends cdk.Stack {
       APP_URL_PARAM: appUrlParamName,
       SCHOOL_ID: 'school',
       FROM_EMAIL: props.fromEmail ?? '',
+      REPLY_TO: props.replyTo ?? '',
       SMS_SENDER_ID: props.smsSenderId ?? '',
       SMS_ENABLED: props.smsEnabled ? 'true' : 'false',
     };
@@ -110,6 +113,7 @@ export class BmsStack extends cdk.Stack {
         SCHOOL_NAME: props.schoolName,
         SMS_SENDER_ID: props.smsSenderId ?? '',
         FROM_EMAIL: props.fromEmail ?? '',
+        REPLY_TO: props.replyTo ?? '',
         SES_CONFIG_SET: `bms-${stage}`,
         TABLE_LOGIN_CHANNEL: tables.loginChannels.tableName,
       },

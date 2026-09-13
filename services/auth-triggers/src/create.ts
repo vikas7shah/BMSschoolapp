@@ -14,6 +14,7 @@ const LOGIN_CHANNEL_TABLE = process.env.TABLE_LOGIN_CHANNEL || '';
 const SCHOOL_NAME = process.env.SCHOOL_NAME || 'Your school';
 const SENDER_ID = process.env.SMS_SENDER_ID || '';
 const FROM_EMAIL = process.env.FROM_EMAIL || '';
+const REPLY_TO = process.env.REPLY_TO || '';
 const SES_CONFIG_SET = process.env.SES_CONFIG_SET || '';
 export const handler: CreateAuthChallengeTriggerHandler = async (event) => {
   if (event.request.challengeName !== 'CUSTOM_CHALLENGE') return event;
@@ -96,6 +97,7 @@ async function sendEmail(to: string, name: string, code: string): Promise<void> 
     FromEmailAddress: `${SCHOOL_NAME} <${FROM_EMAIL}>`,
     ...(SES_CONFIG_SET ? { ConfigurationSetName: SES_CONFIG_SET } : {}),
     Destination: { ToAddresses: [to] },
+    ...(REPLY_TO ? { ReplyToAddresses: [REPLY_TO] } : {}),
     Content: {
       Simple: {
         Subject: { Data: `${SCHOOL_NAME} sign-in code: ${code}`, Charset: 'UTF-8' },

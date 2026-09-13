@@ -78,6 +78,7 @@ async function sendEmail(user: User, msg: ComposedMessage): Promise<DeliveryResu
       FromEmailAddress: env.schoolName ? `${env.schoolName} <${env.fromEmail}>` : env.fromEmail,
       ...(env.sesConfigSet ? { ConfigurationSetName: env.sesConfigSet } : {}),
       Destination: { ToAddresses: [user.email] },
+      ...(env.replyTo ? { ReplyToAddresses: [env.replyTo] } : {}),
       Content: {
         Simple: {
           Subject: { Data: msg.emailSubject, Charset: 'UTF-8' },
