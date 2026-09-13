@@ -88,6 +88,7 @@ export class BmsStack extends cdk.Stack {
       VAPID_SECRET_ARN: vapidSecret.secretArn,
       APP_URL_PARAM: appUrlParamName,
       SCHOOL_ID: 'school',
+      SCHOOL_NAME: props.schoolName,
       FROM_EMAIL: props.fromEmail ?? '',
       REPLY_TO: props.replyTo ?? '',
       SMS_SENDER_ID: props.smsSenderId ?? '',

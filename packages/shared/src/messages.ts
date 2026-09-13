@@ -40,9 +40,7 @@ export function snackTomorrow(c: SnackContext): ComposedMessage {
     emailSubject: `Tomorrow: you're bringing snacks to ${c.classroomName}`,
     emailText: `Hi ${c.firstName},\n\nA friendly reminder that you signed up to bring snacks to `
       + `${c.classroomName} tomorrow, ${formatLong(c.date)}.\n\nPlease bring both a dry snack and `
-      + `fruit for the class.\n\nWhat to bring: {{APP}}/what-to-bring/\n\nIf you can no `
-      + `longer make it, please release your day in the app so another family can pick it up.`
-      + `\n\n— ${c.schoolName}`,
+      + `fruit for the class.\n\nWhat to bring: {{APP}}/what-to-bring/\n\n— ${c.schoolName}`,
     link: `/snacks?date=${c.date}`,
     dedupeKey: `SNACK_TOMORROW#${c.userId}#${c.date}`,
   };
@@ -57,7 +55,9 @@ export function snackNextWeek(c: SnackContext): ComposedMessage {
       + `${formatShort(c.date)} (dry snack and fruit). Reply STOP to opt out.`,
     emailSubject: `Coming up: snacks for ${c.classroomName} on ${formatShort(c.date)}`,
     emailText: `Hi ${c.firstName},\n\nA week's notice: you're signed up to bring snacks — a dry `
-      + `snack and fruit — to ${c.classroomName} on ${formatLong(c.date)}.\n\n— ${c.schoolName}`,
+      + `snack and fruit — to ${c.classroomName} on ${formatLong(c.date)}.\n\nIf something has `
+      + `come up, you can still give the day back in the app until two days before, so another `
+      + `family can take it.\n\n— ${c.schoolName}`,
     link: `/snacks?date=${c.date}`,
     dedupeKey: `SNACK_NEXT_WEEK#${c.userId}#${c.date}`,
   };
