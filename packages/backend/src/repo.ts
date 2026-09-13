@@ -20,6 +20,16 @@ export const slotSk = (date: string) => date;
 
 /* ------------------------------------------------------------------ schools */
 
+export async function setRemindersPaused(schoolId: string, paused: boolean): Promise<void> {
+  await ddb.send(new UpdateCommand({
+    TableName: T.schools,
+    Key: { schoolId },
+    UpdateExpression: 'SET remindersPaused = :p',
+    ExpressionAttributeValues: { ':p': paused },
+    ConditionExpression: 'attribute_exists(schoolId)',
+  }));
+}
+
 export async function getSchool(schoolId: string): Promise<School | null> {
   const r = await ddb.send(new GetCommand({ TableName: T.schools, Key: { schoolId } }));
   return (r.Item as School) ?? null;
@@ -214,6 +224,20 @@ export async function listAllGuardianships(): Promise<{ userId: string; childId:
     key = r.LastEvaluatedKey;
   } while (key);
   return items;
+}
+
+export async function guardianIdsForChild(childId: string): Promise<string[]> {
+  const r = await ddb.send(new QueryCommand({
+    TableName: T.guardianships,
+    IndexName: 'byChild',
+    KeyConditionExpression: 'childId = :c',
+    ExpressionAttributeValues: { ':c': childId },
+  }));
+  return (r.Items ?? []).map((i) => i.userId as string);
+}
+
+export async function deleteChild(childId: string): Promise<void> {
+  await ddb.send(new DeleteCommand({ TableName: T.children, Key: { childId } }));
 }
 
 export async function childrenForGuardian(userId: string): Promise<Child[]> {

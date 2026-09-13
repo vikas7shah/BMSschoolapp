@@ -35,6 +35,8 @@ export interface School {
   timezone: string;
   /** Hour (0-23, school-local) at which the daily reminder sweep sends. */
   reminderHour: number;
+  /** While true the sweep sends nothing — for loading a roster before go-live. */
+  remindersPaused?: boolean;
   createdAt: string;
 }
 

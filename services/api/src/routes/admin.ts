@@ -5,15 +5,31 @@ import {
   type Child, type ImportResult,
 } from '@bms/shared';
 import {
-  childrenForGuardian, createChild, createClassroom, createUser, deleteOpenSlot, deleteUser,
-  ensureSlot, getUserByEmail,
+  childIdsForGuardian, childrenForGuardian, createChild, createClassroom, createUser, deleteChild,
+  deleteOpenSlot, deleteUser, ensureSlot, getUserByEmail, guardianIdsForChild,
   getClassroom, getSchool, getUserByPhone, linkGuardian, listAllGuardianships, listChildren,
-  listClassrooms, listSlotsBySchool, listUsers, updateUser,
+  listClassrooms, listSlotsBySchool, listUsers, releaseSlot, setRemindersPaused, unlinkGuardian, updateUser,
 } from '@bms/backend';
 import { createCognitoUser, deleteCognitoUser } from '../cognito.js';
 import type { Vars } from '../app.js';
 
 const route = new Hono<{ Variables: Vars }>();
+
+/* ------------------------------------------------------------------ school */
+
+route.get('/api/admin/school', async (c) => {
+  const school = await getSchool(c.get('user').schoolId);
+  if (!school) return c.json({ error: 'Not found' }, 404);
+  return c.json({ remindersPaused: !!school.remindersPaused, reminderHour: school.reminderHour });
+});
+
+/** The go-live switch: while paused the hourly sweep sends nothing at all. */
+route.patch('/api/admin/school', async (c) => {
+  const body = await c.req.json().catch(() => ({}));
+  if (typeof body.remindersPaused !== 'boolean') return c.json({ error: 'remindersPaused must be true or false' }, 400);
+  await setRemindersPaused(c.get('user').schoolId, body.remindersPaused);
+  return c.json({ remindersPaused: body.remindersPaused });
+});
 
 /* --------------------------------------------------------------- classrooms */
 
@@ -158,9 +174,31 @@ route.delete('/api/admin/parents/:userId', async (c) => {
   const target = await getUser(userId);
   if (!target || target.schoolId !== admin.schoolId) return c.json({ error: 'Not found' }, 404);
 
+  // Everything that hangs off the account goes with it: the sign-in, the
+  // links to children, children nobody else is a guardian of, and any snack
+  // day they were holding — which reopens so another family can take it.
+  const childIds = await childIdsForGuardian(userId);
+  let childrenRemoved = 0;
+  for (const childId of childIds) {
+    await unlinkGuardian(userId, childId);
+    const others = (await guardianIdsForChild(childId)).filter((id) => id !== userId);
+    if (!others.length) {
+      await deleteChild(childId);
+      childrenRemoved += 1;
+    }
+  }
+
+  const school = await getSchool(admin.schoolId);
+  const today = todayIn(school?.timezone ?? 'America/New_York');
+  const held = (await listSlotsBySchool(admin.schoolId, today, addDaysSafe(today, 400)))
+    .filter((s) => s.status === 'CLAIMED' && s.claimedByUserId === userId);
+  for (const s of held) {
+    await releaseSlot({ classroomId: s.classroomId, date: s.date, userId: admin.userId, isAdmin: true });
+  }
+
   await deleteCognitoUser(target.cognitoUsername ?? target.phone ?? '');
   await deleteUser(userId);
-  return c.json({ ok: true });
+  return c.json({ ok: true, childrenRemoved, daysReopened: held.length });
 });
 
 /**

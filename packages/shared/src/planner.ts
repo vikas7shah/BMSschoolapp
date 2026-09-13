@@ -18,14 +18,21 @@ export interface ReminderConfig {
   nextWeekDays: number;
   /** How far ahead we look when telling parents that days are unfilled. */
   openSlotHorizonDays: number;
-  /** Open slots this close are urgent enough to nudge about daily. */
+  /** Open slots this close are urgent enough to nudge about daily... */
   urgentDays: number;
+  /**
+   * ...but only when they are a gap, not an unfilled calendar. With more open
+   * days than this in view, the nudge stays weekly — a fresh term has every
+   * day open and "urgent" every day would be noise.
+   */
+  urgentMaxOpen: number;
 }
 
 export const DEFAULT_REMINDER_CONFIG: ReminderConfig = {
   nextWeekDays: 7,
   openSlotHorizonDays: 10,
   urgentDays: 3,
+  urgentMaxOpen: 2,
 };
 
 export interface PlannerParent {
@@ -135,7 +142,7 @@ export function planReminders(input: PlannerInput): PlannedNotification[] {
 
     // Urgent gaps earn a daily nudge; everything else is weekly, so the app
     // never becomes something parents mute.
-    const urgent = soonest <= addDays(today, cfg.urgentDays);
+    const urgent = soonest <= addDays(today, cfg.urgentDays) && openCount <= cfg.urgentMaxOpen;
     out.push({
       userId: parent.userId,
       message: openSlots({

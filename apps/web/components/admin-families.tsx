@@ -157,6 +157,21 @@ function ContactRow({ parent, onChanged, onError }: {
   const [editing, setEditing] = useState(false);
   const [email, setEmail] = useState(parent.email ?? '');
   const [busy, setBusy] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+
+  async function remove() {
+    setBusy(true);
+    try {
+      const r = await api.del<{ childrenRemoved: number; daysReopened: number }>(`/api/admin/parents/${parent.userId}`);
+      const bits = [`Removed ${parent.firstName} ${parent.lastName}`];
+      if (r.childrenRemoved) bits.push(`${r.childrenRemoved} ${r.childrenRemoved === 1 ? 'child' : 'children'}`);
+      if (r.daysReopened) bits.push(`reopened ${r.daysReopened} snack ${r.daysReopened === 1 ? 'day' : 'days'}`);
+      onChanged(bits.join(', ') + '.');
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Could not remove that parent.');
+      setBusy(false);
+    }
+  }
 
   async function save() {
     setBusy(true);
@@ -232,6 +247,29 @@ function ContactRow({ parent, onChanged, onError }: {
         >
           No email — add one so they can sign in
         </button>
+      )}
+
+      {parent.role !== 'ADMIN' && (
+        confirming ? (
+          <div className="mt-2 rounded-xl bg-clay-soft p-3 text-xs text-clay">
+            <p>
+              Remove {parent.firstName}? Their sign-in goes too, along with any child
+              no other parent is listed for, and any snack day they hold reopens.
+            </p>
+            <div className="mt-2 flex gap-2">
+              <Button size="sm" variant="danger" loading={busy} onClick={() => void remove()}>Remove</Button>
+              <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>Keep</Button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="mt-2 block text-[11px] text-muted underline underline-offset-2"
+          >
+            Remove from the school
+          </button>
+        )
       )}
     </li>
   );

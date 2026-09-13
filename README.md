@@ -401,6 +401,12 @@ Changing `RELEASE_NOTICE_DAYS` changes both the rule and the wording.
 
 ## How the reminders work
 
+**Pause switch.** Admin → Set-up → *Reminders* pauses every outgoing email and
+text (sign-in codes are unaffected). Load and check a roster paused; resume
+when the school says go. The one-parent test send (`--only`) still works while
+paused, by design.
+
+
 A Lambda wakes every hour and asks the school's own clock whether it is 5pm in
 `America/New_York`. If it is, it plans the day's reminders:
 
@@ -517,6 +523,11 @@ npm test
 ---
 
 ## Common tasks
+
+**Removing a parent** — Admin → Families → Contacts → *Remove from the school*.
+Their sign-in goes, the links to their children go, a child with no other
+guardian goes too, and any snack day they held reopens.
+
 
 **Testing with a few real families** — remove every parent and child except
 the ones named, with a full backup written to `backups/` (git-ignored) first:

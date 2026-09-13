@@ -28,6 +28,10 @@ export const handler = async (event: InvokeEvent = {}) => {
 
   // The job runs hourly and decides for itself, so changing the school's
   // timezone or send hour in the app takes effect without a redeploy.
+  if (school.remindersPaused && !event.onlyUserIds?.length) {
+    console.log('Reminders are paused for this school; nothing sent.');
+    return { sent: 0, skipped: 0, reason: 'PAUSED' };
+  }
   if (!event.force && hour !== school.reminderHour) {
     return { sent: 0, skipped: 0, reason: 'NOT_THE_HOUR', hour, wanted: school.reminderHour };
   }

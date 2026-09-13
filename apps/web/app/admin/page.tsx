@@ -268,6 +268,64 @@ function AddChildForm({ classrooms, onChanged, onError }: {
   );
 }
 
+/**
+ * The go-live switch. A roster can be loaded and checked with this paused;
+ * nothing reaches a parent until the school turns it on.
+ */
+function RemindersCard({ onChanged, onError }: {
+  onChanged: (msg: string) => void;
+  onError: (msg: string) => void;
+}) {
+  const [paused, setPaused] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.get<{ remindersPaused: boolean }>('/api/admin/school')
+      .then((r) => setPaused(r.remindersPaused))
+      .catch(() => setPaused(false));
+  }, []);
+
+  async function flip() {
+    if (paused === null) return;
+    setBusy(true);
+    try {
+      const r = await api.patch<{ remindersPaused: boolean }>('/api/admin/school', { remindersPaused: !paused });
+      setPaused(r.remindersPaused);
+      onChanged(r.remindersPaused ? 'Reminders paused. Nothing will be sent until you resume.' : 'Reminders are on.');
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Could not change that.');
+    } finally { setBusy(false); }
+  }
+
+  return (
+    <Card>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-ink">Reminders</h2>
+          <p className="mt-1 text-sm text-muted">
+            {paused === null ? 'Checking…' : paused
+              ? 'Paused — no emails or texts go out, whatever the calendar says. Sign-in codes still work.'
+              : 'On — families hear the day before their snack day, and when days still need someone.'}
+          </p>
+        </div>
+        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold
+                          ${paused ? 'bg-clay-soft text-clay' : 'bg-sage-soft text-sage-dark'}`}>
+          {paused === null ? '…' : paused ? 'Paused' : 'On'}
+        </span>
+      </div>
+      <Button
+        className="mt-4 w-full"
+        variant={paused ? 'primary' : 'ghost'}
+        loading={busy}
+        disabled={paused === null}
+        onClick={() => void flip()}
+      >
+        {paused ? 'Resume reminders' : 'Pause reminders'}
+      </Button>
+    </Card>
+  );
+}
+
 function SetupTab({ classrooms, onChanged, onError }: {
   classrooms: { classroomId: string; name: string }[];
   onChanged: (msg: string) => void;
@@ -303,6 +361,8 @@ function SetupTab({ classrooms, onChanged, onError }: {
 
   return (
     <div className="space-y-4">
+      <RemindersCard onChanged={onChanged} onError={onError} />
+
       <Card>
         <h2 className="font-semibold text-ink">New classroom</h2>
         <form onSubmit={createClassroom} className="mt-3 space-y-4">

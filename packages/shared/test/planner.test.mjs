@@ -45,6 +45,12 @@ test('flags parents who never signed up at all', () => {
   assert.ok(m[0].message.dedupeKey.endsWith(startOfWeek(TODAY)), 'weekly bucket keeps it to once a week');
 });
 
+test('an empty calendar is nudged weekly, not daily, even when it starts tomorrow', () => {
+  const fresh = planReminders(input([1, 2, 3, 4, 5, 8, 9].map((d) => open(addDays(TODAY, d)))));
+  assert.equal(fresh.length, parents.length, 'one nudge per parent');
+  for (const n of fresh) assert.ok(n.message.dedupeKey.endsWith(startOfWeek(TODAY)), 'weekly bucket');
+});
+
 test('urgent gaps dedupe daily, distant gaps dedupe weekly', () => {
   const urgent = planReminders(input([open(addDays(TODAY, 2))]));
   assert.ok(urgent[0].message.dedupeKey.endsWith(TODAY));
