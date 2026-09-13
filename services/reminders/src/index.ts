@@ -100,6 +100,7 @@ export const handler = async (event: InvokeEvent = {}) => {
     }
   }
 
-  console.log(`Reminder sweep for ${today}: ${sent} sent, ${skipped} suppressed`);
+  // One JSON line per sweep; the dashboard's "reminders sent" series reads it.
+  console.log(JSON.stringify({ metric: 'reminder-sweep', today, sent, skipped }));
   return { sent, skipped, today };
 };

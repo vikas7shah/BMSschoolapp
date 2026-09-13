@@ -565,6 +565,12 @@ email and does nothing until it is clicked.
 | `sms-delivery-failed` | a carrier reported a text undeliverable (SNS delivery-status logs) |
 | SES events | bounce, complaint, reject, rendering failure or delay on any email, via the `bms-prod` configuration set |
 
+All of it, plus what is *working* — reminders sent per day, sign-in codes
+issued, API traffic and latency, email and text delivery, SMS spend — is on
+one CloudWatch dashboard, **bms-prod**, whose URL is a stack output
+(`DashboardUrl`). The bottom panel lists the latest failure lines from every
+function's log, so an alarm email and the reason behind it are one click apart.
+
 One deliberate gap: an alarm on *sent-but-not-received* is impossible — carriers
 and mail providers only report what they refuse. The delivery-status logs above
 are as close as it gets.

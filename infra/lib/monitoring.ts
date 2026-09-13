@@ -35,6 +35,7 @@ export interface MonitoringProps {
 export class Monitoring extends Construct {
   readonly topic: sns.Topic;
   readonly sesConfigurationSet: ses.ConfigurationSet;
+  readonly dashboard: cw.Dashboard;
 
   constructor(scope: Construct, id: string, props: MonitoringProps) {
     super(scope, id);
@@ -47,6 +48,7 @@ export class Monitoring extends Construct {
     this.topic.addSubscription(new subs.EmailSubscription(props.alertEmail));
 
     const notify = new cwActions.SnsAction(this.topic);
+    const alarms: cw.Alarm[] = [];
     const alarm = (name: string, metric: cw.IMetric, opts: Partial<cw.AlarmProps> & { description: string }) => {
       const a = new cw.Alarm(this, name, {
         alarmName: `bms-${stage}-${name}`,
@@ -60,6 +62,7 @@ export class Monitoring extends Construct {
       });
       a.addAlarmAction(notify);
       a.addOkAction(notify);
+      alarms.push(a);
       return a;
     };
 
@@ -212,6 +215,127 @@ export class Monitoring extends Construct {
       })),
     });
 
+    /* ------------------------------------------ one page to look at */
+    // Counts worth seeing that are not failures: sweeps that ran and what
+    // they sent, and sign-in codes issued. Both come from log lines.
+    new logs.MetricFilter(this, 'RemindersSentFilter', {
+      logGroup: props.reminders.logGroup,
+      metricNamespace: 'SnackDays',
+      metricName: 'reminders-sent',
+      filterPattern: logs.FilterPattern.stringValue('$.metric', '=', 'reminder-sweep'),
+      metricValue: '$.sent',
+      defaultValue: 0,
+    });
+    props.authTriggers.forEach((fn, i) => new logs.MetricFilter(this, `SignInCodes${i}`, {
+      logGroup: fn.logGroup,
+      metricNamespace: 'SnackDays',
+      metricName: 'signin-codes',
+      filterPattern: logs.FilterPattern.literal('"Sign-in code issued"'),
+      metricValue: '1',
+      defaultValue: 0,
+    }));
+
+    const snackDays = (metricName: string, label: string, hours = 1) => new cw.Metric({
+      namespace: 'SnackDays', metricName, statistic: 'Sum', period: cdk.Duration.hours(hours), label,
+    });
+    const aws = (namespace: string, metricName: string, label: string, dimensionsMap?: Record<string, string>) =>
+      new cw.Metric({ namespace, metricName, statistic: 'Sum', period: cdk.Duration.hours(1), label, dimensionsMap });
+
+    this.dashboard = new cw.Dashboard(this, 'Dashboard', {
+      dashboardName: `bms-${stage}`,
+      defaultInterval: cdk.Duration.days(7),
+      widgets: [
+        [new cw.AlarmStatusWidget({ title: 'Alarms', alarms, width: 24, height: 4 })],
+        [
+          new cw.GraphWidget({
+            title: 'Reminders sent per day', width: 8, height: 6,
+            left: [snackDays('reminders-sent', 'sent', 24)],
+            leftYAxis: { min: 0 },
+          }),
+          new cw.GraphWidget({
+            title: 'Delivery failures', width: 8, height: 6,
+            left: [
+              snackDays('reminder-delivery-failed', 'reminder'),
+              snackDays('api-delivery-failed', 'confirmation'),
+              snackDays('sms-delivery-failed', 'text undeliverable'),
+              snackDays('signin-code-failed-1', 'sign-in code'),
+            ],
+            leftYAxis: { min: 0 },
+          }),
+          new cw.GraphWidget({
+            title: 'Sign-in codes issued', width: 8, height: 6,
+            left: [snackDays('signin-codes', 'codes', 24)],
+            leftYAxis: { min: 0 },
+          }),
+        ],
+        [
+          new cw.GraphWidget({
+            title: 'API traffic', width: 8, height: 6,
+            left: [
+              props.httpApi.metricCount({ statistic: 'Sum', period: cdk.Duration.hours(1), label: 'requests' }),
+              props.httpApi.metricClientError({ statistic: 'Sum', period: cdk.Duration.hours(1), label: '4xx' }),
+              props.httpApi.metricServerError({ statistic: 'Sum', period: cdk.Duration.hours(1), label: '5xx' }),
+            ],
+            leftYAxis: { min: 0 },
+          }),
+          new cw.GraphWidget({
+            title: 'API latency (p95, ms)', width: 8, height: 6,
+            left: [props.httpApi.metricLatency({ statistic: 'p95', period: cdk.Duration.hours(1), label: 'p95' })],
+            leftYAxis: { min: 0 },
+          }),
+          new cw.GraphWidget({
+            title: 'Function errors', width: 8, height: 6,
+            left: fns.map(([name, fn]) => fn.metricErrors({ statistic: 'Sum', period: cdk.Duration.hours(1), label: name })),
+            leftYAxis: { min: 0 },
+          }),
+        ],
+        [
+          new cw.GraphWidget({
+            title: 'Email (account-wide SES)', width: 8, height: 6,
+            left: [
+              aws('AWS/SES', 'Send', 'sent'),
+              aws('AWS/SES', 'Delivery', 'delivered'),
+              aws('AWS/SES', 'Bounce', 'bounced'),
+              aws('AWS/SES', 'Complaint', 'complaints'),
+            ],
+            leftYAxis: { min: 0 },
+          }),
+          new cw.GraphWidget({
+            title: 'Text messages (SNS)', width: 8, height: 6,
+            left: [
+              aws('AWS/SNS', 'NumberOfNotificationsDelivered', 'delivered', { PhoneNumber: 'PhoneNumberDirect' }),
+              aws('AWS/SNS', 'NumberOfNotificationsFailed', 'failed', { PhoneNumber: 'PhoneNumberDirect' }),
+            ],
+            leftYAxis: { min: 0 },
+          }),
+          new cw.SingleValueWidget({
+            title: 'SMS spend this month (USD)', width: 8, height: 6,
+            metrics: [new cw.Metric({
+              namespace: 'AWS/SNS', metricName: 'SMSMonthToDateSpentUSD', statistic: 'Maximum',
+              period: cdk.Duration.hours(1), label: 'month to date',
+            })],
+          }),
+        ],
+        [
+          new cw.LogQueryWidget({
+            title: 'Latest failures (all functions)', width: 24, height: 8,
+            logGroupNames: [props.api.logGroup.logGroupName, props.reminders.logGroup.logGroupName,
+              ...props.authTriggers.map((f) => f.logGroup.logGroupName)],
+            queryLines: [
+              'fields @timestamp, @message',
+              'filter @message like /failed|Failed|threw|ERROR|Error/',
+              'sort @timestamp desc',
+              'limit 50',
+            ],
+          }),
+        ],
+      ],
+    });
+
+
     new cdk.CfnOutput(this, 'AlertsTopic', { value: this.topic.topicArn });
+    new cdk.CfnOutput(this, 'DashboardUrl', {
+      value: `https://${cdk.Stack.of(this).region}.console.aws.amazon.com/cloudwatch/home?region=${cdk.Stack.of(this).region}#dashboards:name=bms-${stage}`,
+    });
   }
 }
