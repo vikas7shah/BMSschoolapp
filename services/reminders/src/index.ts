@@ -12,6 +12,8 @@ interface InvokeEvent {
   force?: boolean;
   /** Log what would be sent without sending anything. */
   dryRun?: boolean;
+  /** Send only to these users — for a test send to one parent. */
+  onlyUserIds?: string[];
 }
 
 export const handler = async (event: InvokeEvent = {}) => {
@@ -63,6 +65,7 @@ export const handler = async (event: InvokeEvent = {}) => {
       classroomIds: [...(roomsByUser.get(u.userId) ?? [])],
     }));
 
+  const only = event.onlyUserIds?.length ? new Set(event.onlyUserIds) : null;
   const planned = planReminders({
     today,
     schoolName: school.name,
@@ -70,7 +73,7 @@ export const handler = async (event: InvokeEvent = {}) => {
     slots,
     parents,
     config: cfg,
-  });
+  }).filter((p) => !only || only.has(p.userId));
 
   if (event.dryRun) {
     console.log(JSON.stringify({
