@@ -197,9 +197,10 @@ it, in order:
 | **3. Leave the sandbox** | While in sandbox, only destination numbers you have verified receive texts. Note the $1 spend limit **cannot be raised until you leave** — `MaxLimit` is $1. | Support case → *Service limit increase → Pinpoint SMS* |
 | **4. Flip the switch** | `smsEnabled: true` in `infra/cdk.json`, redeploy. Sign-in codes then go by text to parents who opted in; everyone else keeps email. | `npm run deploy` |
 
-Where this stands: toll-free **+1 (877) 549-5707** is requested (step 1,
-pending). The step 2 form is drafted, with the facts still to confirm marked,
-in [docs/toll-free-registration.md](docs/toll-free-registration.md).
+Where this stands: toll-free **+1 (877) 549-5707** is requested (step 1) and
+its registration is submitted and under carrier review (step 2). The
+registration is in the AWS End User Messaging console; it is not in this
+repository because it carries the school's tax ID and street address.
 
 Parents start with texts **off**. Carriers require the recipient's own consent,
 so the only way a number gets a text is the parent switching on *Text message*
