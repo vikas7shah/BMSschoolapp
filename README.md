@@ -518,6 +518,26 @@ npm test
 
 ## Common tasks
 
+**Testing with a few real families** — remove every parent and child except
+the ones named, with a full backup written to `backups/` (git-ignored) first:
+
+```bash
+node scripts/prune-roster.mjs --keep <userId>,<userId>
+```
+
+Reports only; add `--apply` to do it. User ids are on the admin Families
+screen. The roster can be re-imported from the school's spreadsheet afterwards.
+
+**Sending one parent a test reminder** — runs the sweep for that parent alone,
+ignoring the send hour:
+
+```bash
+node scripts/reminders.mjs --only <userId>
+```
+
+Add `--dry-run` to see what would go out first.
+
+
 ```bash
 npm run deploy
 ```
