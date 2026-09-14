@@ -1,7 +1,9 @@
+import { timingSafeEqual } from 'node:crypto';
 import { Hono } from 'hono';
-import { startLoginSchema, verifyLoginSchema, type Identifier } from '@bms/shared';
+import { DEFAULT_PREFS, startLoginSchema, verifyLoginSchema, type Identifier } from '@bms/shared';
 import {
-  bumpRateLimit, env, getUserByEmail, getUserByPhone, putLoginChannel, updateUser,
+  bumpRateLimit, env, getSecret, getUser, getUserByEmail, getUserByPhone, putLoginChannel,
+  putUser, updateUser,
 } from '@bms/backend';
 import type { User } from '@bms/shared';
 import { answerCustomAuth, startCustomAuth, type CodeDestination } from '../cognito.js';
@@ -136,6 +138,48 @@ route.post('/api/auth/verify', async (c) => {
 
 route.post('/api/auth/logout', (c) => {
   c.header('Set-Cookie', clearCookie());
+  return c.json({ ok: true });
+});
+
+/* ------------------------------------------------------- test sign-in */
+// A fixed code that signs in as a stand-alone "Test Admin" — no mailbox, no
+// phone, no link to a real family. Exists only while the stack was deployed
+// with devLogin true: without the secret's ARN these routes say 404.
+const TEST_ADMIN_ID = 'test-admin';
+const DEV_LOGIN_SECRET_ARN = process.env.DEV_LOGIN_SECRET_ARN ?? '';
+
+route.get('/api/auth/test', (c) => c.json({ enabled: !!DEV_LOGIN_SECRET_ARN }));
+
+route.post('/api/auth/test', async (c) => {
+  if (!DEV_LOGIN_SECRET_ARN) return c.json({ error: 'Not found' }, 404);
+
+  const ip = clientIp(c);
+  if ((await bumpRateLimit(`test-login:${ip}`, 900)) > 5) {
+    return c.json({ error: 'Too many attempts. Please try again in a few minutes.' }, 429);
+  }
+
+  const body = await c.req.json().catch(() => ({}));
+  const given = String(body.code ?? '').trim();
+  const expected = (await getSecret(DEV_LOGIN_SECRET_ARN)).trim();
+  const ok = given.length === expected.length
+    && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+  if (!ok) {
+    console.warn(`Test Admin sign-in refused from ${ip}`);
+    return c.json({ error: "That's not the test code." }, 401);
+  }
+
+  const now = new Date().toISOString();
+  const user: User = (await getUser(TEST_ADMIN_ID)) ?? {
+    userId: TEST_ADMIN_ID, cognitoUsername: TEST_ADMIN_ID, schoolId: env.schoolId, role: 'ADMIN',
+    firstName: 'Test', lastName: 'Admin', status: 'ACTIVE',
+    prefs: { ...DEFAULT_PREFS }, createdAt: now, updatedAt: now,
+  };
+  if (user.createdAt === now) await putUser(user);
+  await updateUser(user.userId, { lastLoginAt: new Date().toISOString() });
+  console.warn(`Test Admin signed in from ${ip}`);
+
+  const token = await issueSession({ sub: user.userId, role: user.role, sid: user.schoolId });
+  c.header('Set-Cookie', sessionCookie(token));
   return c.json({ ok: true });
 });
 

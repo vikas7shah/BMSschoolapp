@@ -25,6 +25,7 @@
     "sms-sandbox": "node scripts/sms-sandbox.mjs",
     "reminders:dry-run": "node scripts/reminders.mjs --dry-run",
     "reminders:run": "node scripts/reminders.mjs",
+    "dev-login": "node scripts/dev-login.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "diff": "npm run diff -w @bms/infra",
     "verify-sender": "node scripts/verify-sender.mjs"

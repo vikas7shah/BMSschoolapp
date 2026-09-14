@@ -71,6 +71,15 @@ export async function getUser(userId: string): Promise<User | null> {
   return (r.Item as User) ?? null;
 }
 
+/** Writes a user with a caller-chosen id; createUser is the normal path. */
+export async function putUser(user: User): Promise<void> {
+  await ddb.send(new PutCommand({
+    TableName: T.users,
+    Item: user,
+    ConditionExpression: 'attribute_not_exists(userId)',
+  }));
+}
+
 export async function getUserByPhone(phone: string): Promise<User | null> {
   const r = await ddb.send(new QueryCommand({
     TableName: T.users,

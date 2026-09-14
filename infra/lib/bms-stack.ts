@@ -35,6 +35,13 @@ export interface BmsStackProps extends cdk.StackProps {
   alertEmail: string;
   budgetUsd: number;
   retainData: boolean;
+  /**
+   * A fixed test code that signs in as a stand-alone "Test Admin" account, for
+   * building and checking the app without a real parent's mailbox. The code is
+   * kept in Secrets Manager, never in the repository; every use raises an
+   * alert. Set false and deploy to remove the route and the secret together.
+   */
+  devLogin: boolean;
 }
 
 export class BmsStack extends cdk.Stack {
@@ -57,6 +64,15 @@ export class BmsStack extends cdk.Stack {
       secretStringValue: cdk.SecretValue.unsafePlainText('{}'), // filled in below
       removalPolicy: props.retainData ? cdk.RemovalPolicy.RETAIN : cdk.RemovalPolicy.DESTROY,
     });
+
+    const devLoginSecret = props.devLogin ? new secrets.Secret(this, 'DevLoginSecret', {
+      secretName: `bms-${stage}-dev-login`,
+      description: 'Fixed code for the Test Admin sign-in. Removed by setting devLogin false.',
+      generateSecretString: {
+        passwordLength: 8, excludePunctuation: true, excludeLowercase: true, excludeUppercase: true,
+      },
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+    }) : undefined;
 
     /* ------------------------------------- the app URL, published for later */
 
@@ -187,8 +203,10 @@ export class BmsStack extends cdk.Stack {
         ...backendEnv,
         COGNITO_USER_POOL_ID: userPool.userPoolId,
         COGNITO_CLIENT_ID: userPoolClient.userPoolClientId,
+        ...(devLoginSecret ? { DEV_LOGIN_SECRET_ARN: devLoginSecret.secretArn } : {}),
       },
     });
+    devLoginSecret?.grantRead(apiFn);
 
     /* ----------------------------------------------------- reminders lambda */
 

@@ -120,6 +120,14 @@ export class Monitoring extends Construct {
         'A sign-in code could not be sent. The parent is stuck at the login screen.');
     }
 
+    /* ------------------------------------------ the test sign-in */
+    // Not a failure, but every use is worth an email: if it was not you, the
+    // code has leaked and devLogin should be switched off.
+    deliveryFailures('test-admin-signin', props.api.logGroup,
+      'Test Admin signed in|Test Admin sign-in refused',
+      'The fixed test code was used (or tried) to sign in as Test Admin. The log line has the IP. '
+      + 'If this was not you, set devLogin to false in infra/cdk.json and deploy.');
+
     /* ------------------------------------------ email that bounced */
     // A bounce means the address on file is wrong; a complaint means a parent
     // marked us as spam. Both are worth knowing the same day.

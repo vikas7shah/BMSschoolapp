@@ -29,6 +29,8 @@ new BmsStack(app, `Bms-${stage}`, {
   budgetUsd: Number(app.node.tryGetContext('budgetUsd') ?? 10),
   retainData: app.node.tryGetContext('retainData') !== 'false'
     && app.node.tryGetContext('retainData') !== false,
+  // Test-only sign-in with a fixed code. Set false before the school goes live.
+  devLogin: app.node.tryGetContext('devLogin') === true,
   env: {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION ?? 'us-east-1',

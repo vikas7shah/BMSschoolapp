@@ -26,6 +26,7 @@
     ],
     "smsEnabled": false,
     "alertEmail": "vikas.shah@homeoperationshub.com",
-    "budgetUsd": 10
+    "budgetUsd": 10,
+    "devLogin": true
   }
 }

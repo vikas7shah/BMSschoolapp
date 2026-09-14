@@ -154,6 +154,72 @@ export default function LoginPage() {
       <p className="mt-10 text-center text-xs text-muted">
         Not on the list? Ask the school office to add you.
       </p>
+
+      <TestSignIn />
     </main>
+  );
+}
+
+/**
+ * While the app is being built: a fixed code signs in as "Test Admin". The
+ * link only renders when the backend says the feature is deployed, so once
+ * devLogin is switched off nothing is left on the page.
+ */
+function TestSignIn() {
+  const [enabled, setEnabled] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.get<{ enabled: boolean }>('/api/auth/test')
+      .then((r) => setEnabled(r.enabled))
+      .catch(() => setEnabled(false));
+  }, []);
+
+  if (!enabled) return null;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.post('/api/auth/test', { code });
+      window.location.href = '/admin/';
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not sign you in.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-6 text-center">
+      {open ? (
+        <form onSubmit={submit} className="mx-auto max-w-xs space-y-3 rounded-2xl bg-black/5 p-4 text-left">
+          <Field label="Test code" hint="Signs in as Test Admin. For building the app only.">
+            <input
+              className={`${inputClass} text-center tracking-[0.3em]`}
+              type="password"
+              inputMode="numeric"
+              autoFocus
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              required
+            />
+          </Field>
+          {error && <Banner tone="error">{error}</Banner>}
+          <Button type="submit" loading={busy} className="w-full">Sign in as Test Admin</Button>
+        </form>
+      ) : (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="text-[11px] text-muted/70 underline underline-offset-4"
+        >
+          Staff test sign-in
+        </button>
+      )}
+    </div>
   );
 }

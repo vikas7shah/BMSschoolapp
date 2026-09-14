@@ -524,6 +524,25 @@ npm test
 
 ## Common tasks
 
+**Test Admin sign-in (while building).** With `devLogin: true` in
+`infra/cdk.json`, the login page shows a small *Staff test sign-in* link that
+takes a fixed code and signs in as a stand-alone "Test Admin" account — no
+mailbox, no phone, no link to a family. The code lives in Secrets Manager,
+not the repository:
+
+```bash
+npm run dev-login
+```
+
+```bash
+npm run dev-login -- --set 123456
+```
+
+Every use (and every wrong guess) emails the alert address with the IP. To
+remove it, set `devLogin` to `false` and deploy: the route, the secret and the
+link all go. Then remove the *Test Admin* row under Admin → Families.
+
+
 **Removing a parent** — Admin → Families → Contacts → *Remove from the school*.
 Their sign-in goes, the links to their children go, a child with no other
 guardian goes too, and any snack day they held reopens.
