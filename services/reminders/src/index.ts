@@ -1,10 +1,10 @@
 import {
-  DEFAULT_REMINDER_CONFIG, addDays, hourIn, planReminders, todayIn,
+  DEFAULT_REMINDER_CONFIG, SCHOOL_YEAR, addDays, hourIn, planReminders, todayIn,
   type PlannerParent,
 } from '@bms/shared';
 import {
   deliver, env, getSchool, listAllGuardianships, listChildren, listClassrooms,
-  listSlotsBySchool, listUsers,
+  listSlotsBySchool, listUsers, publishSchoolYear,
 } from '@bms/backend';
 
 interface InvokeEvent {
@@ -28,6 +28,11 @@ export const handler = async (event: InvokeEvent = {}) => {
 
   // The job runs hourly and decides for itself, so changing the school's
   // timezone or send hour in the app takes effect without a redeploy.
+  // Keep the calendar published through the last day of school. Runs every
+  // hour but is a no-op once each classroom is marked done.
+  const published = await publishSchoolYear(env.schoolId);
+  if (published.classrooms) console.log(`Published ${published.created} snack days for ${published.classrooms} classroom(s) through ${SCHOOL_YEAR.end}`);
+
   if (school.remindersPaused && !event.onlyUserIds?.length) {
     console.log('Reminders are paused for this school; nothing sent.');
     return { sent: 0, skipped: 0, reason: 'PAUSED' };

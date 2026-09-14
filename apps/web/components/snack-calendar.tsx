@@ -3,13 +3,26 @@
 import { useMemo, useState } from 'react';
 import {
   addDays, closureDates, closureReason, formatLong, formatShort, releaseBlockedReason,
-  RELEASE_BLOCK_MESSAGE, type CivilDate,
+  RELEASE_BLOCK_MESSAGE, SCHOOL_YEAR, type CivilDate,
 } from '@bms/shared';
 import { monthLabel, monthOf, monthWeeks } from '@/lib/calendar';
 import type { Slot } from '@/lib/api';
 import { Button } from './ui';
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+// The calendar pages through the school year and no further: sign-up ends
+// with the last day of school, and the months either side are just grey.
+const FIRST_MONTH = monthOf(SCHOOL_YEAR.start);
+const LAST_MONTH = monthOf(SCHOOL_YEAR.end);
+const clampMonth = (m: string) => (m < FIRST_MONTH ? FIRST_MONTH : m > LAST_MONTH ? LAST_MONTH : m);
+
+/** Why a weekday has no snack day, when it is not a closure. */
+function outOfYear(date: CivilDate): string | null {
+  if (date < SCHOOL_YEAR.start) return 'Before school starts';
+  if (date > SCHOOL_YEAR.end) return 'School year over';
+  return null;
+}
 
 /** "Oct 22" — for buttons, where "Thu, Oct 22" wraps on a phone. */
 const shortDay = (d: CivilDate) => formatShort(d).replace(/^\w+, /, '');
@@ -43,7 +56,7 @@ export function SnackCalendar({
   today, slots, classroomId, busyDate, onClaim, onRelease, childOptions, canClaim, initialDate,
   classroomFull, isAdmin, forChildName, existingThisMonth,
 }: CalendarProps) {
-  const [month, setMonth] = useState(monthOf(initialDate ?? today));
+  const [month, setMonth] = useState(clampMonth(monthOf(initialDate ?? today)));
   const [selected, setSelected] = useState<CivilDate | null>(initialDate ?? null);
   const [childId, setChildId] = useState<string | null>(null);
 
@@ -66,8 +79,9 @@ export function SnackCalendar({
         <button
           type="button"
           aria-label="Previous month"
-          onClick={() => setMonth(monthOf(addDays(`${month}-01`, -1)))}
-          className="flex size-10 items-center justify-center rounded-full text-muted hover:bg-black/5"
+          disabled={month <= FIRST_MONTH}
+          onClick={() => setMonth(clampMonth(monthOf(addDays(`${month}-01`, -1))))}
+          className="flex size-10 items-center justify-center rounded-full text-muted hover:bg-black/5 disabled:opacity-30"
         >
           <Chevron dir="left" />
         </button>
@@ -75,8 +89,9 @@ export function SnackCalendar({
         <button
           type="button"
           aria-label="Next month"
-          onClick={() => setMonth(monthOf(addDays(`${month}-28`, 7)))}
-          className="flex size-10 items-center justify-center rounded-full text-muted hover:bg-black/5"
+          disabled={month >= LAST_MONTH}
+          onClick={() => setMonth(clampMonth(monthOf(addDays(`${month}-28`, 7))))}
+          className="flex size-10 items-center justify-center rounded-full text-muted hover:bg-black/5 disabled:opacity-30"
         >
           <Chevron dir="right" />
         </button>
@@ -93,6 +108,7 @@ export function SnackCalendar({
           const isToday = date === today;
           const past = date < today;
           const closed = !slot && closures.has(date);
+          const outside = !slot && !closed && outOfYear(date);
           const name = slot?.claimedForChildName ?? slot?.claimedByName;
 
           return (
@@ -100,13 +116,13 @@ export function SnackCalendar({
               key={date}
               type="button"
               disabled={!slot}
-              aria-label={`${formatLong(date)}${slot ? '' : closed ? ` — ${closureReason(date)}` : ' — no snack day'}`}
+              aria-label={`${formatLong(date)}${slot ? '' : ` — ${closed ? closureReason(date) : outside ?? 'no snack day'}`}`}
               aria-current={isToday ? 'date' : undefined}
               onClick={() => { setSelected(date); setChildId(null); }}
               className={[
                 'flex min-h-16 flex-col items-center justify-start gap-0.5 rounded-xl px-1 py-1.5',
                 'text-center transition-colors',
-                !inMonth ? 'opacity-35' : '',
+                !inMonth || outside ? 'opacity-35' : '',
                 !slot ? `cursor-default ${closed ? 'bg-clay-soft/50' : 'bg-transparent'}`
                   : slot.isMine ? 'bg-sage text-white'
                   : slot.status === 'CLAIMED' ? 'bg-sage-soft text-sage-dark'
@@ -193,7 +209,7 @@ function DayDetail({
         <div>
           <h3 className="font-semibold text-ink">{formatLong(date)}</h3>
           <p className="mt-0.5 text-sm text-muted">
-            {!slot ? (closureReason(date) ?? 'Not a snack day')
+            {!slot ? (closureReason(date) ?? outOfYear(date) ?? 'Not a snack day')
               : slot.status === 'CLAIMED'
                 ? slot.isMine
                   ? `You're bringing snacks${slot.claimedForChildName ? ` for ${slot.claimedForChildName}` : ''}`

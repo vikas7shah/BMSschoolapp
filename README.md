@@ -296,6 +296,16 @@ cached shell is only ever used offline.
 
 ## The snack board
 
+**Snack days publish themselves.** The hourly job makes sure every classroom
+has an open slot on each of its snack weekdays from the first day of school to
+the last (`SCHOOL_YEAR` in `packages/shared/src/school-calendar.ts`), minus
+closures, and marks the classroom done. A classroom created by an import is on
+the calendar within the hour. The parent calendar pages through the school
+year and no further; days after the last day of school are grey. Next year:
+update `SCHOOL_YEAR` and `SCHOOL_EVENTS`, deploy, and the job fills the new
+year in.
+
+
 A **snack day is one commitment**: whoever takes a day brings both a dry snack
 and fruit for the class that morning. There is one slot per day, not one for
 each item.
@@ -524,9 +534,9 @@ npm test
 
 ## Common tasks
 
-**Test Admin sign-in (while building).** With `devLogin: true` in
-`infra/cdk.json`, the login page shows a small *Staff test sign-in* link that
-takes a fixed code and signs in as a stand-alone "Test Admin" account — no
+**Admin sign-in with a fixed code (while building).** With `devLogin: true`
+in `infra/cdk.json`, the login page shows a small *Admin sign in* link that
+takes a fixed code and signs in as a stand-alone "School Admin" account — no
 mailbox, no phone, no link to a family. The code lives in Secrets Manager,
 not the repository:
 
@@ -540,7 +550,7 @@ npm run dev-login -- --set 123456
 
 Every use (and every wrong guess) emails the alert address with the IP. To
 remove it, set `devLogin` to `false` and deploy: the route, the secret and the
-link all go. Then remove the *Test Admin* row under Admin → Families.
+link all go. Then remove the *School Admin* row under Admin → Families.
 
 
 **Removing a parent** — Admin → Families → Contacts → *Remove from the school*.

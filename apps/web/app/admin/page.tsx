@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { SCHOOL_YEAR, formatLong } from '@bms/shared';
 import { ApiError, api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
@@ -111,7 +112,6 @@ export default function AdminPage() {
 
       {tab === 'SETUP' && (
         <SetupTab
-          classrooms={overview?.classrooms ?? []}
           onChanged={(msg) => { setFlash(msg); void load(); }}
           onError={setError}
         />
@@ -326,113 +326,18 @@ function RemindersCard({ onChanged, onError }: {
   );
 }
 
-function SetupTab({ classrooms, onChanged, onError }: {
-  classrooms: { classroomId: string; name: string }[];
+function SetupTab({ onChanged, onError }: {
   onChanged: (msg: string) => void;
   onError: (msg: string) => void;
 }) {
-  const [name, setName] = useState('');
-  const [weekdays, setWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
-  const [busy, setBusy] = useState(false);
-  const [gen, setGen] = useState({ classroomId: '', from: today(), to: plusDays(today(), 60) });
-
-  async function createClassroom(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      await api.post('/api/admin/classrooms', { name, snackWeekdays: weekdays });
-      onChanged(`Created ${name}.`);
-      setName('');
-    } catch (err) {
-      onError(err instanceof ApiError ? err.message : 'Could not create that classroom.');
-    } finally { setBusy(false); }
-  }
-
-  async function generate(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    try {
-      const r = await api.post<{ created: number }>('/api/admin/slots/generate', gen);
-      onChanged(`Added ${r.created} snack slots.`);
-    } catch (err) {
-      onError(err instanceof ApiError ? err.message : 'Could not generate days.');
-    } finally { setBusy(false); }
-  }
-
   return (
     <div className="space-y-4">
       <RemindersCard onChanged={onChanged} onError={onError} />
-
-      <Card>
-        <h2 className="font-semibold text-ink">New classroom</h2>
-        <form onSubmit={createClassroom} className="mt-3 space-y-4">
-          <Field label="Name">
-            <input className={inputClass} required placeholder="Primary — Room 1"
-              value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <Field
-            label="Snack days"
-            hint="Which weekdays need a family to bring snacks. One family covers the whole day."
-          >
-            <div className="flex gap-1.5">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri'].map((d, i) => {
-                const day = i + 1;
-                const on = weekdays.includes(day);
-                return (
-                  <button
-                    key={d}
-                    type="button"
-                    aria-pressed={on}
-                    onClick={() => setWeekdays((w) =>
-                      on ? w.filter((x) => x !== day) : [...w, day].sort())}
-                    className={`flex-1 rounded-xl py-2.5 text-xs font-medium transition-colors
-                                ${on ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
-                  >
-                    {d}
-                  </button>
-                );
-              })}
-            </div>
-          </Field>
-          <Button type="submit" loading={busy} disabled={!weekdays.length} className="w-full">
-            Create classroom
-          </Button>
-        </form>
-      </Card>
-
-      <Card>
-        <h2 className="font-semibold text-ink">Publish snack days</h2>
-        <p className="mt-1 text-sm text-muted">
-          Adds one open day for each snack weekday in the range. Safe to re-run —
-          existing sign-ups are never touched.
-        </p>
-        <form onSubmit={generate} className="mt-4 space-y-4">
-          <Field label="Classroom">
-            <select className={inputClass} required value={gen.classroomId}
-              onChange={(e) => setGen({ ...gen, classroomId: e.target.value })}>
-              <option value="">Select…</option>
-              {classrooms.map((c) => (
-                <option key={c.classroomId} value={c.classroomId}>{c.name}</option>
-              ))}
-            </select>
-          </Field>
-          <div className="grid grid-cols-2 gap-3">
-            <Field label="From">
-              <input className={inputClass} type="date" required value={gen.from}
-                onChange={(e) => setGen({ ...gen, from: e.target.value })} />
-            </Field>
-            <Field label="To">
-              <input className={inputClass} type="date" required value={gen.to}
-                onChange={(e) => setGen({ ...gen, to: e.target.value })} />
-            </Field>
-          </div>
-          <Button type="submit" loading={busy} className="w-full">Publish days</Button>
-        </form>
-      </Card>
+      <p className="px-1 text-xs text-muted">
+        Snack days are published automatically for the whole school year
+        ({SCHOOL_YEAR.label}), for every classroom, minus school closures. Sign-up
+        closes with the last day of school, {formatLong(SCHOOL_YEAR.end)}.
+      </p>
     </div>
   );
 }
-
-const today = () => new Date().toISOString().slice(0, 10);
-const plusDays = (d: string, n: number) =>
-  new Date(Date.parse(`${d}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);

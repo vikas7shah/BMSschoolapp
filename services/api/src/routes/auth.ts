@@ -142,10 +142,10 @@ route.post('/api/auth/logout', (c) => {
 });
 
 /* ------------------------------------------------------- test sign-in */
-// A fixed code that signs in as a stand-alone "Test Admin" — no mailbox, no
+// A fixed code that signs in as a stand-alone "School Admin" — no mailbox, no
 // phone, no link to a real family. Exists only while the stack was deployed
 // with devLogin true: without the secret's ARN these routes say 404.
-const TEST_ADMIN_ID = 'test-admin';
+const TEST_ADMIN_ID = 'admin';
 const DEV_LOGIN_SECRET_ARN = process.env.DEV_LOGIN_SECRET_ARN ?? '';
 
 route.get('/api/auth/test', (c) => c.json({ enabled: !!DEV_LOGIN_SECRET_ARN }));
@@ -164,19 +164,19 @@ route.post('/api/auth/test', async (c) => {
   const ok = given.length === expected.length
     && timingSafeEqual(Buffer.from(given), Buffer.from(expected));
   if (!ok) {
-    console.warn(`Test Admin sign-in refused from ${ip}`);
+    console.warn(`Admin code refused from ${ip}`);
     return c.json({ error: "That's not the test code." }, 401);
   }
 
   const now = new Date().toISOString();
   const user: User = (await getUser(TEST_ADMIN_ID)) ?? {
     userId: TEST_ADMIN_ID, cognitoUsername: TEST_ADMIN_ID, schoolId: env.schoolId, role: 'ADMIN',
-    firstName: 'Test', lastName: 'Admin', status: 'ACTIVE',
+    firstName: 'School', lastName: 'Admin', status: 'ACTIVE',
     prefs: { ...DEFAULT_PREFS }, createdAt: now, updatedAt: now,
   };
   if (user.createdAt === now) await putUser(user);
   await updateUser(user.userId, { lastLoginAt: new Date().toISOString() });
-  console.warn(`Test Admin signed in from ${ip}`);
+  console.warn(`Admin code sign-in from ${ip}`);
 
   const token = await issueSession({ sub: user.userId, role: user.role, sid: user.schoolId });
   c.header('Set-Cookie', sessionCookie(token));

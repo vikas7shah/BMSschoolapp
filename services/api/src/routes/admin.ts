@@ -1,14 +1,15 @@
 import { Hono } from 'hono';
 import {
   createClassroomSchema, dateRange, generateSlotsSchema, importRosterSchema, inviteParentSchema,
-  isoWeekday, todayIn, closureDates, closureReason, isSnackEligible,
+  todayIn,
   type Child, type ImportResult,
 } from '@bms/shared';
 import {
   childIdsForGuardian, childrenForGuardian, createChild, createClassroom, createUser, deleteChild,
-  deleteOpenSlot, deleteUser, ensureSlot, getUserByEmail, guardianIdsForChild,
+  deleteUser, getUserByEmail, guardianIdsForChild,
   getClassroom, getSchool, getUserByPhone, linkGuardian, listAllGuardianships, listChildren,
-  listClassrooms, listSlotsBySchool, listUsers, releaseSlot, setRemindersPaused, unlinkGuardian, updateUser,
+  listClassrooms, listSlotsBySchool, listUsers, publishRange, releaseSlot, setRemindersPaused,
+  unlinkGuardian, updateUser,
 } from '@bms/backend';
 import { createCognitoUser, deleteCognitoUser } from '../cognito.js';
 import type { Vars } from '../app.js';
@@ -409,43 +410,9 @@ route.post('/api/admin/slots/generate', async (c) => {
     return c.json({ error: 'Unknown classroom' }, 404);
   }
   if (from > to) return c.json({ error: 'Start date must come first' }, 400);
+  if (dateRange(from, to).length > 400) return c.json({ error: 'Please generate at most a year at a time' }, 400);
 
-  const days = dateRange(from, to);
-  if (days.length > 400) return c.json({ error: 'Please generate at most a year at a time' }, 400);
-
-  const weekdays = new Set(classroom.snackWeekdays);
-  const closures = closureDates();
-
-  let created = 0;
-  let skippedHolidays = 0;
-  let removed = 0;
-  const holidays: { date: string; reason: string }[] = [];
-
-  for (const date of days) {
-    if (!weekdays.has(isoWeekday(date))) continue;
-
-    if (!isSnackEligible(date, closures)) {
-      skippedHolidays += 1;
-      const reason = closureReason(date);
-      if (reason) holidays.push({ date, reason });
-      // Self-healing: a date that has since become a holiday loses its snack
-      // day, but only while nobody has claimed it.
-      if (await deleteOpenSlot(classroomId, date)) removed += 1;
-      continue;
-    }
-
-    // One slot per day: whoever takes it brings both a dry snack and fruit.
-    // ensureSlot is conditional, so re-running a range never clobbers sign-ups.
-    if (await ensureSlot(admin.schoolId, classroomId, date)) created += 1;
-  }
-
-  return c.json({
-    created,
-    skippedHolidays,
-    removed,
-    // De-duplicated so a week-long vacation reads as one entry.
-    holidays: [...new Map(holidays.map((h) => [h.reason, h])).values()].slice(0, 12),
-  });
+  return c.json(await publishRange(classroom, from, to));
 });
 
 /** Coverage view: which upcoming days still have nobody on them. */

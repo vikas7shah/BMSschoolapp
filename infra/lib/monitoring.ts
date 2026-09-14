@@ -124,8 +124,8 @@ export class Monitoring extends Construct {
     // Not a failure, but every use is worth an email: if it was not you, the
     // code has leaked and devLogin should be switched off.
     deliveryFailures('test-admin-signin', props.api.logGroup,
-      'Test Admin signed in|Test Admin sign-in refused',
-      'The fixed test code was used (or tried) to sign in as Test Admin. The log line has the IP. '
+      'Admin code sign-in|Admin code refused',
+      'The fixed admin code was used (or tried) to sign in. The log line has the IP. '
       + 'If this was not you, set devLogin to false in infra/cdk.json and deploy.');
 
     /* ------------------------------------------ email that bounced */

@@ -46,6 +46,8 @@ export interface Classroom {
   name: string;
   /** ISO weekdays (1=Mon .. 5=Fri) that need a snack contribution. */
   snackWeekdays: number[];
+  /** Last date snack days have been generated through (the school year's end once done). */
+  publishedThrough?: string;
   createdAt: string;
 }
 

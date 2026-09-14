@@ -161,7 +161,7 @@ export default function LoginPage() {
 }
 
 /**
- * While the app is being built: a fixed code signs in as "Test Admin". The
+ * While the app is being built: a fixed code signs in as "Admin". The
  * link only renders when the backend says the feature is deployed, so once
  * devLogin is switched off nothing is left on the page.
  */
@@ -197,7 +197,7 @@ function TestSignIn() {
     <div className="mt-6 text-center">
       {open ? (
         <form onSubmit={submit} className="mx-auto max-w-xs space-y-3 rounded-2xl bg-black/5 p-4 text-left">
-          <Field label="Test code" hint="Signs in as Test Admin. For building the app only.">
+          <Field label="Admin code">
             <input
               className={`${inputClass} text-center tracking-[0.3em]`}
               type="password"
@@ -209,7 +209,7 @@ function TestSignIn() {
             />
           </Field>
           {error && <Banner tone="error">{error}</Banner>}
-          <Button type="submit" loading={busy} className="w-full">Sign in as Test Admin</Button>
+          <Button type="submit" loading={busy} className="w-full">Sign in as admin</Button>
         </form>
       ) : (
         <button
@@ -217,7 +217,7 @@ function TestSignIn() {
           onClick={() => setOpen(true)}
           className="text-[11px] text-muted/70 underline underline-offset-4"
         >
-          Staff test sign-in
+          Admin sign in
         </button>
       )}
     </div>

@@ -4,3 +4,4 @@ export * from './repo.js';
 export * from './secrets.js';
 export * from './appUrl.js';
 export * from './notify.js';
+export * from './publish.js';
