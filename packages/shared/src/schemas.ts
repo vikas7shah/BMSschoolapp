@@ -144,6 +144,7 @@ export const newsletterSchema = z.object({
   from: z.string().trim().min(1).max(120),
   sections: z.array(z.object({
     heading: z.string().trim().min(1).max(80),
+    brief: z.array(z.string().trim().min(1).max(200)).max(6).optional(),
     paragraphs: z.array(paragraph).min(1).max(20),
   })).min(1).max(30),
   curriculumIntro: paragraph.optional().or(z.literal('')),

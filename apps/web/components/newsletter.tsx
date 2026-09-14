@@ -91,6 +91,14 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
       {newsletter.sections.map((s) => (
         <Card key={s.heading}>
           <h3 className="font-semibold text-ink">{s.heading}</h3>
+          {s.brief && s.brief.length > 0 && (
+            // The short version first; the school's own words follow untouched.
+            <ul className="mt-2 space-y-1 rounded-xl bg-sage-soft/60 px-4 py-3 text-sm text-sage-dark">
+              {s.brief.map((b, i) => (
+                <li key={i} className="flex gap-2"><span aria-hidden>•</span><span>{b}</span></li>
+              ))}
+            </ul>
+          )}
           {s.paragraphs.map((p, i) => (
             <p key={i} className="mt-2 text-sm leading-relaxed text-ink">{p}</p>
           ))}

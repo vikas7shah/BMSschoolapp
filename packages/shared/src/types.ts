@@ -60,6 +60,8 @@ export interface CurriculumGroup {
 
 export interface NewsletterSection {
   heading: string;
+  /** Three or four present-tense points above the school's own text. */
+  brief?: string[];
   /** Paragraphs, verbatim from the school. */
   paragraphs: string[];
 }

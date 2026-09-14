@@ -5,7 +5,7 @@ import { CURRICULUM_SUBJECTS, monthLabel, type Newsletter } from '@bms/shared';
 import { ApiError, api } from '@/lib/api';
 import { Button, Card, Field, inputClass } from './ui';
 
-type Section = { heading: string; text: string };
+type Section = { heading: string; brief: string; text: string };
 type Group = { group: string; teachers: string; subjects: Record<string, string> };
 
 const emptySubjects = () => Object.fromEntries(CURRICULUM_SUBJECTS.map(([k]) => [k, '']));
@@ -24,7 +24,7 @@ export function NewsletterEditor({ onChanged, onError }: {
   const [month, setMonth] = useState(thisMonth);
   const [sentOn, setSentOn] = useState(new Date().toISOString().slice(0, 10));
   const [from, setFrom] = useState('Mrs. Sahar, Administrator');
-  const [sections, setSections] = useState<Section[]>([{ heading: '', text: '' }]);
+  const [sections, setSections] = useState<Section[]>([{ heading: '', brief: '', text: '' }]);
   const [intro, setIntro] = useState('');
   const [groups, setGroups] = useState<Group[]>(DEFAULT_GROUPS.map((g) => ({ group: g, teachers: '', subjects: emptySubjects() })));
   const [signoff, setSignoff] = useState('');
@@ -45,7 +45,7 @@ export function NewsletterEditor({ onChanged, onError }: {
       const { newsletter: n } = await api.get<{ newsletter: Newsletter }>(`/api/newsletters/${m}`);
       setSentOn(n.sentOn);
       setFrom(n.from);
-      setSections(n.sections.map((s) => ({ heading: s.heading, text: s.paragraphs.join('\n\n') })));
+      setSections(n.sections.map((s) => ({ heading: s.heading, brief: (s.brief ?? []).join('\n'), text: s.paragraphs.join('\n\n') })));
       setIntro(n.curriculumIntro ?? '');
       setGroups(n.curriculum.length
         ? n.curriculum.map((g) => ({ group: g.group, teachers: g.teachers, subjects: { ...emptySubjects(), ...g.subjects } }))
@@ -62,7 +62,11 @@ export function NewsletterEditor({ onChanged, onError }: {
         sentOn, from, signoff, curriculumIntro: intro,
         sections: sections
           .filter((s) => s.heading.trim() && s.text.trim())
-          .map((s) => ({ heading: s.heading, paragraphs: s.text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean) })),
+          .map((s) => ({
+            heading: s.heading,
+            brief: s.brief.split('\n').map((b) => b.trim()).filter(Boolean),
+            paragraphs: s.text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+          })),
         curriculum: groups.filter((g) => g.group.trim() && Object.values(g.subjects).some((v) => v.trim())),
       });
       onChanged(`${monthLabel(month)} newsletter published.`);
@@ -116,6 +120,10 @@ export function NewsletterEditor({ onChanged, onError }: {
               <input className={inputClass} placeholder="Show and Tell" value={s.heading}
                 onChange={(e) => setSection(i, { heading: e.target.value })} />
             </Field>
+            <Field label="Briefly" hint="Optional — three or four short points, one per line, in the present tense. Shown above the text.">
+              <textarea className={`${inputClass} min-h-20`} value={s.brief}
+                onChange={(e) => setSection(i, { brief: e.target.value })} />
+            </Field>
             <Field label="Text" hint="A blank line starts a new paragraph.">
               <textarea className={`${inputClass} min-h-32`} value={s.text}
                 onChange={(e) => setSection(i, { text: e.target.value })} />
@@ -124,7 +132,7 @@ export function NewsletterEditor({ onChanged, onError }: {
         </Card>
       ))}
       <Button type="button" variant="secondary" className="w-full"
-        onClick={() => setSections((xs) => [...xs, { heading: '', text: '' }])}>
+        onClick={() => setSections((xs) => [...xs, { heading: '', brief: '', text: '' }])}>
         Add a section
       </Button>
 

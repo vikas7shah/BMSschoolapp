@@ -365,6 +365,11 @@ reader's own classrooms lifted to the top. Home shows the family's own
 classrooms' curriculum ("This month in class") and a card for the latest
 letter. One item per month in the Newsletters table.
 
+Each section can carry a **"briefly"** — three or four present-tense bullets
+shown in a tinted box above the school's paragraphs, which stay word for word.
+The bullets are the app's summary, not the school's words, so the office
+should read them before publishing.
+
 Getting a month in: **Admin → Newsletter** — paste each section under a
 heading (a blank line starts a new paragraph), fill the six curriculum cells
 per group, save. Saving a month again replaces it. Or, from a JSON file:
