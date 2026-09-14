@@ -90,4 +90,22 @@ for (const room of overview.byClassroom) {
   if (room.unbookedFamilies < 1) { console.error(`${room.name}: expected an unbooked test family, saw ${room.unbookedFamilies}`); process.exit(1); }
 }
 console.log(`Dashboard sees an unbooked family in each of ${overview.byClassroom.length} classrooms. ✓`);
+
+// Nobody books for another family's child — the admin account has no children,
+// so its claim on a test child's open day must be refused outright.
+const room = rooms[0];
+const { slots } = await call('GET', `/api/snacks?classroomId=${room.classroomId}`);
+const open = slots.find((x) => x.status === 'OPEN');
+if (open) {
+  const r = await fetch(`${base}/api/snacks/claim`, {
+    method: 'POST', headers: { 'content-type': 'application/json', cookie },
+    body: JSON.stringify({ classroomId: room.classroomId, date: open.date }),
+  });
+  const body = await r.json();
+  if (r.status !== 403 || body.code !== 'NOT_YOUR_CHILD') {
+    console.error(`Expected the admin's claim to be refused with NOT_YOUR_CHILD, got ${r.status} ${JSON.stringify(body)}`);
+    process.exit(1);
+  }
+  console.log('A day cannot be taken for a child that is not yours. ✓');
+}
 for (const f of FAMILIES) console.log(`  ${f.firstName} ${f.lastName} <${f.email}> — ${f.child.firstName}`);

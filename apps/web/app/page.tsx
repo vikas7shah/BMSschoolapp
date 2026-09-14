@@ -3,13 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { formatLong, formatShort, monthOf, relativeLabel } from '@bms/shared';
-import { api, type Notification, type Slot } from '@/lib/api';
+import { api, type Notification, type OverviewData, type Slot } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallCard } from '@/components/install-card';
 import { Banner, Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import { Coverage } from '@/components/coverage';
-import type { OverviewData } from '@/components/admin-overview';
+
 
 interface MineResponse { today: string; slots: Slot[] }
 

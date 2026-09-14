@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { monthLabel } from '@bms/shared';
-import { ApiError, api } from '@/lib/api';
+import { ApiError, api, type OverviewData } from '@/lib/api';
 import { Button, Card } from './ui';
-import type { OverviewData } from './admin-overview';
+
 
 type Room = OverviewData['byClassroom'][number];
 

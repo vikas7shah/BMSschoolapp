@@ -321,6 +321,10 @@ function DayDetail({
                 </Button>
               )}
             </>
+          ) : slot.status === 'OPEN' ? (
+            <p className="rounded-xl bg-black/5 px-3.5 py-3 text-sm leading-relaxed text-muted">
+              Only a parent of a child in this classroom can take a day.
+            </p>
           ) : null}
         </div>
       )}

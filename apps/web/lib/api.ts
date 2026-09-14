@@ -36,6 +36,23 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return body as T;
 }
 
+/** What /api/admin/overview returns: this month and next, per classroom. */
+export interface OverviewData {
+  today: string;
+  classrooms: { classroomId: string; name: string }[];
+  totals: { slots: number; filled: number; open: number };
+  months: string[];
+  byClassroom: {
+    classroomId: string; name: string; slots: number; filled: number; open: number;
+    months: { month: string; slots: number; filled: number; open: number }[];
+    families: number;
+    unbookedFamilies: number;
+    nudgedToday: boolean;
+  }[];
+  openSlots: { date: string; classroomId: string }[];
+  childrenWithNothingBooked: { childName: string; classroomId?: string }[];
+}
+
 export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>

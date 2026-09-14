@@ -5,7 +5,7 @@ import {
 } from '@bms/shared';
 import {
   childrenForGuardian, claimSlot, classroomHasOpenDay, deliver, getClassroom, getSchool,
-  listChildren, listClassrooms, listSlots, releaseSlot, slotsForUser,
+  listClassrooms, listSlots, releaseSlot, slotsForUser,
 } from '@bms/backend';
 import type { Vars } from '../app.js';
 
@@ -112,25 +112,21 @@ route.post('/api/snacks/claim', async (c) => {
   const tz = school?.timezone ?? 'America/Los_Angeles';
   if (date < todayIn(tz)) return c.json({ error: 'That day has already passed' }, 400);
 
-  // The board shows the child's name, so work it out here rather than making
-  // the parent pick every time. A parent's own children in this room are the
-  // candidates; staff, who usually have none, choose from the class roster so
-  // the board never falls back to showing an adult's name.
-  const own = (await childrenForGuardian(user.userId))
+  // A day is always taken for a child, and only by that child's own parent.
+  // The candidates are the caller's children in this room — nothing else, for
+  // staff included — so nobody can book on another family's behalf, and a
+  // child with no parent on file cannot be booked at all.
+  const candidates = (await childrenForGuardian(user.userId))
     .filter((k: Child) => k.classroomId === classroomId);
-  const candidates = own.length > 0
-    ? own
-    : user.role === 'ADMIN'
-      ? (await listChildren(user.schoolId)).filter((k: Child) => k.classroomId === classroomId)
-      : [];
+  if (!candidates.length) {
+    return c.json({ error: 'You can only take a day for your own child in this classroom.', code: 'NOT_YOUR_CHILD' }, 403);
+  }
 
-  let child: Child | undefined;
-  if (childId) {
-    child = candidates.find((k: Child) => k.childId === childId);
-    if (!child) return c.json({ error: 'That child is not in this classroom' }, 403);
-  } else if (candidates.length === 1) {
-    child = candidates[0];
-  } else if (candidates.length > 1) {
+  const picked = childId ? candidates.find((k: Child) => k.childId === childId) : candidates[0];
+  if (childId && !picked) {
+    return c.json({ error: 'You can only take a day for your own child.', code: 'NOT_YOUR_CHILD' }, 403);
+  }
+  if (!childId && candidates.length > 1) {
     return c.json({
       error: 'Which child is this for?',
       code: 'CHILD_REQUIRED',
@@ -139,22 +135,21 @@ route.post('/api/snacks/claim', async (c) => {
         .sort((a, b) => a.firstName.localeCompare(b.firstName)),
     }, 400);
   }
+  const child: Child = picked!;
 
   // One day per child per calendar month. Rather than refuse, tell the app
   // which day the child already holds so it can offer a switch.
   const month = date.slice(0, 7);
-  const existing = child
-    ? (await listSlots(classroomId, `${month}-01`, `${month}-31`)).find(
-        (s) => s.status === 'CLAIMED' && s.claimedForChildId === child!.childId && s.date !== date,
-      )
-    : undefined;
+  const existing = (await listSlots(classroomId, `${month}-01`, `${month}-31`)).find(
+    (s) => s.status === 'CLAIMED' && s.claimedForChildId === child.childId && s.date !== date,
+  );
 
   if (existing && !switchFrom) {
     return c.json({
-      error: `${child!.firstName} already has ${formatShort(existing.date)} this month.`,
+      error: `${child.firstName} already has ${formatShort(existing.date)} this month.`,
       code: 'MONTH_TAKEN',
       existingDate: existing.date,
-      childName: child!.firstName,
+      childName: child.firstName,
     }, 409);
   }
   if (switchFrom && (!existing || existing.date !== switchFrom)) {
@@ -181,7 +176,7 @@ route.post('/api/snacks/claim', async (c) => {
     userId: user.userId,
     // "Ana G." on the board, but just "Ana" for a parent with one name.
     userName: user.lastName ? `${user.firstName} ${user.lastName.charAt(0)}.` : user.firstName,
-    childName: child?.firstName, childId: child?.childId, note,
+    childName: child.firstName, childId: child.childId, note,
   });
 
   if (result === 'NOT_FOUND') return c.json({ error: 'That day is not on the calendar' }, 404);

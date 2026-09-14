@@ -7,22 +7,20 @@ import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { Banner, Button, Card, Field, PageHeader, inputClass } from '@/components/ui';
 import { RosterImport } from '@/components/roster-import';
-import { AdminOverview, type OverviewData } from '@/components/admin-overview';
+import type { OverviewData } from '@/lib/api';
 import { AdminFamilies, type Child, type Parent } from '@/components/admin-families';
 
-type Tab = 'OVERVIEW' | 'ROSTER' | 'IMPORT' | 'SETUP';
+type Tab = 'ROSTER' | 'IMPORT' | 'SETUP';
 
 export default function AdminPage() {
   const { me } = useSession();
-  const [tab, setTab] = useState<Tab>('OVERVIEW');
+  const [tab, setTab] = useState<Tab>('ROSTER');
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [parents, setParents] = useState<Parent[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
   const [adding, setAdding] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
-  /** null = every classroom. Narrows the whole Overview tab, not one card. */
-  const [room, setRoom] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -50,8 +48,7 @@ export default function AdminPage() {
 
       <div role="tablist" className="mb-5 flex gap-1.5 rounded-full bg-black/5 p-1">
         {([
-          ['OVERVIEW', 'Overview'], ['ROSTER', 'Families'],
-          ['IMPORT', 'Import'], ['SETUP', 'Set-up'],
+          ['ROSTER', 'Families'], ['IMPORT', 'Import'], ['SETUP', 'Set-up'],
         ] as const).map(
           ([value, label]) => (
             <button
@@ -71,15 +68,6 @@ export default function AdminPage() {
       {error && <div className="mb-4"><Banner tone="error">{error}</Banner></div>}
       {flash && <div className="mb-4"><Banner tone="success">{flash}</Banner></div>}
 
-      {tab === 'OVERVIEW' && overview && (
-        <AdminOverview
-          overview={overview}
-          room={room}
-          onRoom={setRoom}
-          onChanged={(msg) => { setFlash(msg); void load(); }}
-          onError={setError}
-        />
-      )}
 
       {tab === 'ROSTER' && (
         <div className="space-y-4">

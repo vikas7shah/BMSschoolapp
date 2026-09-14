@@ -209,7 +209,7 @@ export default function SnacksPage() {
           classroomId={classroomId}
           busyDate={busyDate}
           childOptions={childOptions}
-          canClaim={!!me}
+          canClaim={!!activeChild}
           initialDate={linkedDate}
           classroomFull={!!room?.full}
           isAdmin={!!board?.isAdmin}

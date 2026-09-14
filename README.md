@@ -375,6 +375,16 @@ regular classes are not running.
 On the snack calendar, a closed weekday shows as **Closed** rather than simply
 being blank, and tapping it names the holiday.
 
+## Only your own child
+
+A snack day is always taken *for a child*, and only by that child's own
+parent. The API resolves the child from the caller's guardianships in that
+classroom and refuses anything else — staff included — so nobody can book on
+another family's behalf, and a child with no parent on file cannot be booked
+at all. The app hides the button in the same cases; the API is the rule.
+The post-deploy smoke test checks it: the admin account's claim on an open
+day is refused with `NOT_YOUR_CHILD`.
+
 ## One day a month, per child
 
 A child holds at most one snack day in any calendar month. Taking a second is
@@ -416,8 +426,8 @@ page: for each classroom, this month and next, how many days are filled and
 how many families have nothing booked — with a *Remind them* button that sends
 the usual open-days message to exactly those families, right now. It goes
 even while reminders are paused, skips the weekly dedupe, and is limited to
-once a day per classroom. The same card heads Admin → Overview. An admin who
-is also a parent sees their family's days below the dashboard.
+once a day per classroom. An admin who is also a parent sees their family's days below the dashboard.
+(There is no separate Overview tab; Admin holds Families, Import and Set-up.)
 
 
 **Pause switch.** Admin → Set-up → *Reminders* pauses every outgoing email and
