@@ -57,6 +57,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body?: unknown) =>
     request<T>(path, { method: 'POST', body: body ? JSON.stringify(body) : undefined }),
+  put: <T>(path: string, body: unknown) =>
+    request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   del: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
@@ -97,6 +99,7 @@ export interface Me {
   prefs: { sms: boolean; email: boolean; push: boolean; inApp: boolean };
   children: { childId: string; firstName: string; lastName: string; classroomId: string }[];
   classroomIds: string[];
+  classroomNames: Record<string, string>;
 }
 
 export interface Notification {

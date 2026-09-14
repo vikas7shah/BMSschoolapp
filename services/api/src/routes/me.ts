@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
 import { pushSubscribeSchema, updatePrefsSchema, type SessionUser } from '@bms/shared';
 import {
-  childrenForGuardian, deletePushSubscription, getVapidPublicKey, listNotifications,
+  childrenForGuardian, deletePushSubscription, getVapidPublicKey, listClassrooms, listNotifications,
   markNotificationRead, putPushSubscription, updateUser,
 } from '@bms/backend';
 import type { Vars } from '../app.js';
@@ -15,6 +15,7 @@ const endpointId = (endpoint: string) =>
 route.get('/api/me', async (c) => {
   const user = c.get('user');
   const children = await childrenForGuardian(user.userId);
+  const rooms = await listClassrooms(user.schoolId);
   const payload: SessionUser = {
     userId: user.userId,
     schoolId: user.schoolId,
@@ -26,6 +27,7 @@ route.get('/api/me', async (c) => {
     prefs: user.prefs,
     children,
     classroomIds: [...new Set(children.map((k) => k.classroomId))],
+    classroomNames: Object.fromEntries(rooms.map((r) => [r.classroomId, r.name])),
   };
   return c.json(payload);
 });

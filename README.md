@@ -357,6 +357,27 @@ bring" entries can never be rendered as if they were suggestions. Several are
 allergy, choking or preservative related, so change the wording only with the
 school.
 
+## The newsletter
+
+The school's monthly letter, word for word, under the **News** tab — headings
+added so it reads on a phone, the curriculum as one card per group with the
+reader's own classrooms lifted to the top. Home shows the family's own
+classrooms' curriculum ("This month in class") and a card for the latest
+letter. One item per month in the Newsletters table.
+
+Getting a month in: **Admin → Newsletter** — paste each section under a
+heading (a blank line starts a new paragraph), fill the six curriculum cells
+per group, save. Saving a month again replaces it. Or, from a JSON file:
+
+```bash
+node scripts/newsletter.mjs 2026-09
+```
+
+`docs/newsletters/2026-09.json` is September, as sent; the smoke test
+publishes it on every deploy. Curriculum groups match classrooms by name
+("Classroom 3" ↔ the classroom called Classroom 3); a group with no
+classroom, like Elementary, shows on the Newsletter page only.
+
 ## The school calendar
 
 `packages/shared/src/school-calendar.ts` holds the published school year —
@@ -374,6 +395,12 @@ regular classes are not running.
 
 On the snack calendar, a closed weekday shows as **Closed** rather than simply
 being blank, and tapping it names the holiday.
+
+## Home is a dashboard
+
+For parents and admins alike, Home is columns that sit side by side where the
+screen is wide enough and fold underneath each other on a phone, in the same
+order: coverage (admins), your snack days, this month in class, coming up.
 
 ## A family's days are the family's
 

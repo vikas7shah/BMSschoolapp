@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  SCHOOL_EVENTS, formatLong, formatShort, monthLabel, monthOf, relativeLabel,
+  SCHOOL_EVENTS, formatLong, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
 import { api, type Notification, type OverviewData, type Slot } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -12,6 +12,7 @@ import { InstallCard } from '@/components/install-card';
 import { Banner, Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import { Coverage } from '@/components/coverage';
 import { EventList } from '@/components/event-list';
+import { CurriculumCard, groupMatches, myClassroomsOf } from '@/components/newsletter';
 
 
 interface MineResponse { today: string; slots: Slot[] }
@@ -22,6 +23,7 @@ export default function HomePage() {
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [newsletters, setNewsletters] = useState<Newsletter[] | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = me?.role === 'ADMIN';
@@ -30,12 +32,14 @@ export default function HomePage() {
   const isParent = !isAdmin || (me?.children.length ?? 0) > 0;
 
   const load = useCallback(async () => {
-    const [m, notes] = await Promise.all([
+    const [m, notes, news] = await Promise.all([
       api.get<MineResponse>('/api/snacks/mine'),
       api.get<{ unread: number; notifications: Notification[] }>('/api/notifications'),
+      api.get<{ newsletters: Newsletter[] }>('/api/newsletters').catch(() => ({ newsletters: [] })),
     ]);
     setMine(m);
     setUnread(notes.unread);
+    setNewsletters(news.newsletters);
     setLoading(false);
   }, []);
 
@@ -63,112 +67,158 @@ export default function HomePage() {
   const eventMonth = eventsIn(monthOf(today)).length ? monthOf(today) : nextMonth;
   const events = eventsIn(eventMonth);
 
+  const myClassrooms = myClassroomsOf(me);
+  const latest = newsletters?.[0] ?? null;
+  const myCurriculum = latest
+    ? latest.curriculum.filter((g) => [...myClassrooms.keys()].some((n) => groupMatches(g.group, n)))
+    : [];
+  const tagFor = (group: string) =>
+    [...myClassrooms.entries()].find(([n]) => groupMatches(group, n))?.[1];
+
+  // Home is a dashboard: columns sit side by side where the screen allows and
+  // fold underneath each other on a phone, in the same order.
+  const col = 'min-w-0 flex-[1_1_300px]';
+
   return (
-    <Shell>
-      <header className="mb-7">
+    <Shell wide>
+      <header className="mb-6">
         <p className="text-sm text-muted">{greeting()}</p>
         <h1 className="text-2xl font-bold tracking-tight">{me?.firstName}</h1>
       </header>
 
-      {isAdmin && (
-        <section aria-labelledby="coverage-heading" className="mb-6">
-          <p id="coverage-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Snack day coverage
-          </p>
-          {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
-          {flash && <div className="mb-3"><Banner tone="success">{flash}</Banner></div>}
-          {overview
-            ? <Coverage overview={overview} onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
-            : <Skeleton className="h-40" />}
-        </section>
-      )}
+      {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
+      {flash && <div className="mb-3"><Banner tone="success">{flash}</Banner></div>}
 
-      {!isParent ? null : loading ? (
-        <Skeleton className="h-40" />
-      ) : next ? (
-        <section aria-labelledby="days-heading">
-          <p id="days-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Your snack days
-          </p>
-          <ul className="space-y-3">
-            {/* Every booked day, each naming the child — a family with two
-                children sees both, not the nearest one and a count. */}
-            {soon.map((slot, i) => {
-              const soonest = i === 0;
-              const who = slot.claimedForChildName;
-              // relativeLabel falls back to the date beyond a week, which
-              // would repeat the full date on the line below.
-              const rel = relativeLabel(slot.date, mine!.today);
-              const showRel = rel !== formatShort(slot.date);
-              return (
-                <li
-                  key={`${slot.classroomId}-${slot.date}`}
-                  className={soonest
-                    ? 'rounded-2xl bg-sage p-5 text-white shadow-sm'
-                    : 'rounded-2xl border border-line bg-surface p-4'}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className={`text-xl font-bold ${soonest ? '' : 'text-ink'}`}>
-                        {who ? `${who}` : 'Snacks'}
-                        {showRel && (
-                          <span className={`ml-2 text-base font-medium ${soonest ? 'text-white/80' : 'text-muted'}`}>
-                            {rel}
-                          </span>
-                        )}
-                      </p>
-                      <p className={`mt-0.5 text-sm ${soonest ? 'text-white/85' : 'text-muted'}`}>
-                        {formatLong(slot.date)}
-                        {slot.classroomName ? ` · ${slot.classroomName}` : ''}
-                      </p>
-                    </div>
-                  </div>
-                  {soonest && (
-                    <p className="mt-4 inline-flex rounded-full bg-white/15 px-3 py-1.5 text-sm font-medium">
-                      Dry snack and fruit
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          {later > 0 && (
-            <p className="mt-3 px-1 text-xs text-muted">
-              {later} more {later === 1 ? 'day' : 'days'} later in the year — they&apos;ll show here as
-              their month comes round.
+      <div className="flex flex-wrap items-start gap-4">
+        {isAdmin && (
+          <section aria-labelledby="coverage-heading" className={col}>
+            <p id="coverage-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              Snack day coverage
             </p>
-          )}
-        </section>
-      ) : (
-        <EmptyState
-          title={later > 0 ? 'Nothing this month or next' : 'No snack day booked'}
-          body={later > 0
-            ? `Your ${later === 1 ? 'day is' : 'days are'} later in the year — ${later === 1 ? 'it' : 'they'}'ll show here as the month comes round.`
-            : 'Families take turns bringing a dry snack and fruit. Pick a day that works for you.'}
-          action={<Link href="/snacks/"><Button>{later > 0 ? 'See the calendar' : 'Find a day'}</Button></Link>}
-        />
-      )}
+            {overview
+              ? <Coverage overview={overview} onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
+              : <Skeleton className="h-40" />}
+          </section>
+        )}
 
-      <div className="mt-4"><InstallCard dismissible /></div>
+        {isParent && (
+          <section aria-labelledby="days-heading" className={col}>
+            <p id="days-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              Your snack days
+            </p>
+            {loading ? (
+              <Skeleton className="h-40" />
+            ) : next ? (
+              <>
+                <ul className="space-y-3">
+                  {/* Every booked day this month and next, each naming the child. */}
+                  {soon.map((slot, i) => {
+                    const soonest = i === 0;
+                    const who = slot.claimedForChildName;
+                    // relativeLabel falls back to the date beyond a week, which
+                    // would repeat the full date on the line below.
+                    const rel = relativeLabel(slot.date, mine!.today);
+                    const showRel = rel !== formatShort(slot.date);
+                    return (
+                      <li
+                        key={`${slot.classroomId}-${slot.date}`}
+                        className={soonest
+                          ? 'rounded-2xl bg-sage p-5 text-white shadow-sm'
+                          : 'rounded-2xl border border-line bg-surface p-4'}
+                      >
+                        <p className={`text-xl font-bold ${soonest ? '' : 'text-ink'}`}>
+                          {who ? `${who}` : 'Snacks'}
+                          {showRel && (
+                            <span className={`ml-2 text-base font-medium ${soonest ? 'text-white/80' : 'text-muted'}`}>
+                              {rel}
+                            </span>
+                          )}
+                        </p>
+                        <p className={`mt-0.5 text-sm ${soonest ? 'text-white/85' : 'text-muted'}`}>
+                          {formatLong(slot.date)}
+                          {slot.classroomName ? ` · ${slot.classroomName}` : ''}
+                        </p>
+                        {soonest && (
+                          <p className="mt-4 inline-flex rounded-full bg-white/15 px-3 py-1.5 text-sm font-medium">
+                            Dry snack and fruit
+                          </p>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+                {later > 0 && (
+                  <p className="mt-3 px-1 text-xs text-muted">
+                    {later} more {later === 1 ? 'day' : 'days'} later in the year — they&apos;ll show here as
+                    their month comes round.
+                  </p>
+                )}
+              </>
+            ) : (
+              <EmptyState
+                title={later > 0 ? 'Nothing this month or next' : 'No snack day booked'}
+                body={later > 0
+                  ? `Your ${later === 1 ? 'day is' : 'days are'} later in the year — ${later === 1 ? 'it' : 'they'}'ll show here as the month comes round.`
+                  : 'Families take turns bringing a dry snack and fruit. Pick a day that works for you.'}
+                action={<Link href="/snacks/"><Button>{later > 0 ? 'See the calendar' : 'Find a day'}</Button></Link>}
+              />
+            )}
+          </section>
+        )}
 
-      {events.length > 0 && (
-        <Card className="mt-4">
-          <div className="flex items-baseline justify-between gap-3">
-            <h2 className="font-semibold text-ink">{monthLabel(eventMonth).replace(/ \d{4}$/, '')} at school</h2>
-            <Link href="/calendar/" className="text-xs text-muted underline underline-offset-2">Full calendar</Link>
-          </div>
-          <div className="mt-2"><EventList events={events} today={today} /></div>
-        </Card>
-      )}
+        {myCurriculum.length > 0 && latest && (
+          <section aria-labelledby="class-heading" className={col}>
+            <p id="class-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              This month in class
+            </p>
+            <div className="space-y-3">
+              {myCurriculum.map((g) => (
+                <CurriculumCard key={g.group} group={g} month={latest.month} tag={tagFor(g.group)} link />
+              ))}
+            </div>
+          </section>
+        )}
 
-      {unread > 0 && (
-        <Card className="mt-4 flex items-center justify-between gap-4">
-          <p className="text-sm text-ink">
-            You have {unread} unread {unread === 1 ? 'message' : 'messages'}.
+        <section aria-labelledby="up-heading" className={col}>
+          <p id="up-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            Coming up
           </p>
-          <Link href="/me/"><Button size="sm" variant="ghost">Read</Button></Link>
-        </Card>
-      )}
+          <div className="space-y-3">
+            {latest && (
+              <Card className="border-transparent bg-sage-soft">
+                <h2 className="font-semibold text-sage-dark">
+                  {monthLabel(latest.month).replace(/ \d{4}$/, '')} newsletter
+                </h2>
+                <p className="mt-1 text-sm text-ink">
+                  From {latest.from.replace(/,.*$/, '')} · {latest.sections.map((x) => x.heading).slice(0, 4).join(', ')}
+                  {latest.sections.length > 4 ? '…' : ''}
+                </p>
+                <Link href={`/news/?month=${latest.month}`} className="mt-3 inline-block">
+                  <Button size="sm">Read it</Button>
+                </Link>
+              </Card>
+            )}
+            {events.length > 0 && (
+              <Card>
+                <div className="flex items-baseline justify-between gap-3">
+                  <h2 className="font-semibold text-ink">{monthLabel(eventMonth).replace(/ \d{4}$/, '')} at school</h2>
+                  <Link href="/calendar/" className="text-xs text-muted underline underline-offset-2">Full calendar</Link>
+                </div>
+                <div className="mt-2"><EventList events={events} today={today} /></div>
+              </Card>
+            )}
+            {unread > 0 && (
+              <Card className="flex items-center justify-between gap-4">
+                <p className="text-sm text-ink">
+                  You have {unread} unread {unread === 1 ? 'message' : 'messages'}.
+                </p>
+                <Link href="/me/"><Button size="sm" variant="ghost">Read</Button></Link>
+              </Card>
+            )}
+            <InstallCard dismissible />
+          </div>
+        </section>
+      </div>
     </Shell>
   );
 }

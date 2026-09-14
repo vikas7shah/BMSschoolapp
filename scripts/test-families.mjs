@@ -130,4 +130,17 @@ if (open) {
   if (again.summary.created !== 1) { console.error(`Re-seed of family 1 failed: ${JSON.stringify(again.summary)}`); process.exit(1); }
 }
 
+// The September newsletter is the first entry; publishing it is idempotent
+// and proves the admin editor's endpoint and the parents' read path.
+{
+  const doc = JSON.parse(readFileSync(new URL('../docs/newsletters/2026-09.json', import.meta.url), 'utf8'));
+  await call('PUT', '/api/admin/newsletters/2026-09', doc);
+  const { newsletters } = await call('GET', '/api/newsletters');
+  const sept = newsletters.find((n) => n.month === '2026-09');
+  if (!sept || sept.sections.length !== doc.sections.length || sept.curriculum.length !== doc.curriculum.length) {
+    console.error('September newsletter did not read back as published'); process.exit(1);
+  }
+  console.log(`Newsletter for September reads back: ${sept.sections.length} sections, ${sept.curriculum.length} groups. ✓`);
+}
+
 for (const f of FAMILIES) console.log(`  ${f.firstName} ${f.lastName} <${f.email}> — ${f.child.firstName}`);

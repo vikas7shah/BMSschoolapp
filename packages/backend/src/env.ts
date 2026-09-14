@@ -21,6 +21,7 @@ export const env = {
     dedupe: req('TABLE_DEDUPE'),
     rateLimit: req('TABLE_RATELIMIT'),
     loginChannels: req('TABLE_LOGIN_CHANNEL'),
+    newsletters: req('TABLE_NEWSLETTERS'),
   },
   cognito: {
     userPoolId: req('COGNITO_USER_POOL_ID'),

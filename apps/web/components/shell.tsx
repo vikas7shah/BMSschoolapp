@@ -6,7 +6,7 @@ import { Spinner } from './ui';
 import { useRequireAuth } from '@/lib/session';
 
 /** Standard authenticated page frame: centred column plus bottom navigation. */
-export function Shell({ children }: { children: React.ReactNode }) {
+export function Shell({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
   const { me, loading } = useRequireAuth();
 
   if (loading) {
@@ -22,7 +22,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <TopBar />
-      <main className="mx-auto w-full max-w-lg px-5 pt-4 pb-28">{children}</main>
+      <main className={`mx-auto w-full px-5 pt-4 pb-28 ${wide ? 'max-w-5xl' : 'max-w-lg'}`}>{children}</main>
       <BottomNav />
     </>
   );

@@ -138,6 +138,31 @@ export const createClassroomSchema = z.object({
 
 /* --------------------------------------------------------- roster import */
 
+const paragraph = z.string().trim().min(1).max(4000);
+export const newsletterSchema = z.object({
+  sentOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  from: z.string().trim().min(1).max(120),
+  sections: z.array(z.object({
+    heading: z.string().trim().min(1).max(80),
+    paragraphs: z.array(paragraph).min(1).max(20),
+  })).min(1).max(30),
+  curriculumIntro: paragraph.optional().or(z.literal('')),
+  curriculum: z.array(z.object({
+    group: z.string().trim().min(1).max(60),
+    teachers: z.string().trim().max(120).default(''),
+    subjects: z.object({
+      biology: z.string().trim().max(300).default(''),
+      geography: z.string().trim().max(300).default(''),
+      botany: z.string().trim().max(300).default(''),
+      science: z.string().trim().max(300).default(''),
+      culture: z.string().trim().max(300).default(''),
+      art: z.string().trim().max(300).default(''),
+    }),
+  })).max(10).default([]),
+  signoff: z.string().trim().max(1000).default(''),
+});
+export type NewsletterInput = z.infer<typeof newsletterSchema>;
+
 export const importChildSchema = z.object({
   firstName: z.string().min(1).max(60),
   lastName: z.string().min(1).max(60),

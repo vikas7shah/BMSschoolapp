@@ -9,8 +9,9 @@ import { Banner, Button, Card, Field, PageHeader, inputClass } from '@/component
 import { RosterImport } from '@/components/roster-import';
 import type { OverviewData } from '@/lib/api';
 import { AdminFamilies, type Child, type Parent } from '@/components/admin-families';
+import { NewsletterEditor } from '@/components/newsletter-editor';
 
-type Tab = 'ROSTER' | 'IMPORT' | 'SETUP';
+type Tab = 'ROSTER' | 'IMPORT' | 'NEWS' | 'SETUP';
 
 export default function AdminPage() {
   const { me } = useSession();
@@ -48,7 +49,7 @@ export default function AdminPage() {
 
       <div role="tablist" className="mb-5 flex gap-1.5 rounded-full bg-black/5 p-1">
         {([
-          ['ROSTER', 'Families'], ['IMPORT', 'Import'], ['SETUP', 'Set-up'],
+          ['ROSTER', 'Families'], ['IMPORT', 'Import'], ['NEWS', 'Newsletter'], ['SETUP', 'Set-up'],
         ] as const).map(
           ([value, label]) => (
             <button
@@ -101,6 +102,13 @@ export default function AdminPage() {
           existingEmails={new Set(parents.map((p) => p.email).filter((e): e is string => !!e))}
           onImported={(msg) => { setFlash(msg); void load(); }}
           onRefresh={load}
+        />
+      )}
+
+      {tab === 'NEWS' && (
+        <NewsletterEditor
+          onChanged={(msg) => { setFlash(msg); setError(null); }}
+          onError={setError}
         />
       )}
 

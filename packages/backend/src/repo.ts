@@ -3,7 +3,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ulid } from 'ulid';
 import type {
-  Child, Classroom, NotificationRecord, PushSubscriptionRecord, School, SnackSlot, User,
+  Child, Classroom, Newsletter, NotificationRecord, PushSubscriptionRecord, School, SnackSlot, User,
 } from '@bms/shared';
 import { DEFAULT_PREFS } from '@bms/shared';
 import { ddb, nowIso, ttlDays } from './ddb.js';
@@ -37,6 +37,28 @@ export async function getSchool(schoolId: string): Promise<School | null> {
 
 export async function putSchool(school: School): Promise<void> {
   await ddb.send(new PutCommand({ TableName: T.schools, Item: school }));
+}
+
+/* -------------------------------------------------------------- newsletters */
+
+export async function putNewsletter(n: Newsletter): Promise<void> {
+  await ddb.send(new PutCommand({ TableName: T.newsletters, Item: n }));
+}
+
+export async function getNewsletter(schoolId: string, month: string): Promise<Newsletter | null> {
+  const r = await ddb.send(new GetCommand({ TableName: T.newsletters, Key: { schoolId, month } }));
+  return (r.Item as Newsletter) ?? null;
+}
+
+/** Newest first. */
+export async function listNewsletters(schoolId: string): Promise<Newsletter[]> {
+  const r = await ddb.send(new QueryCommand({
+    TableName: T.newsletters,
+    KeyConditionExpression: 'schoolId = :s',
+    ExpressionAttributeValues: { ':s': schoolId },
+    ScanIndexForward: false,
+  }));
+  return (r.Items as Newsletter[]) ?? [];
 }
 
 /* --------------------------------------------------------------- classrooms */

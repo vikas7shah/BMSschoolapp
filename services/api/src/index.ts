@@ -4,6 +4,7 @@ import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import snackRoutes from './routes/snacks.js';
 import adminRoutes from './routes/admin.js';
+import newsletterRoutes from './routes/newsletters.js';
 
 const app = createApp();
 
@@ -34,11 +35,14 @@ app.use('/api/snacks', authenticate);
 app.use('/api/notifications/*', authenticate);
 app.use('/api/notifications', authenticate);
 app.use('/api/push/*', authenticate);
+app.use('/api/newsletters/*', authenticate);
+app.use('/api/newsletters', authenticate);
 app.use('/api/admin/*', authenticate, requireAdmin);
 
 app.route('/', meRoutes);
 app.route('/', snackRoutes);
 app.route('/', adminRoutes);
+app.route('/', newsletterRoutes);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
 

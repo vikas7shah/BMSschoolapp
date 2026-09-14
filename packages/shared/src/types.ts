@@ -40,6 +40,44 @@ export interface School {
   createdAt: string;
 }
 
+/** The six columns every curriculum table in the school's newsletter carries. */
+export const CURRICULUM_SUBJECTS = [
+  ['biology', 'Biology (Zoology)'],
+  ['geography', 'Geography'],
+  ['botany', 'Botany'],
+  ['science', 'Science'],
+  ['culture', 'Culture'],
+  ['art', 'Art'],
+] as const;
+export type CurriculumSubject = typeof CURRICULUM_SUBJECTS[number][0];
+
+export interface CurriculumGroup {
+  /** As printed: "Classroom 1", "Elementary". Matched to a classroom by name where one exists. */
+  group: string;
+  teachers: string;
+  subjects: Record<CurriculumSubject, string>;
+}
+
+export interface NewsletterSection {
+  heading: string;
+  /** Paragraphs, verbatim from the school. */
+  paragraphs: string[];
+}
+
+/** The school's monthly letter, exactly as written, with headings added for the phone. */
+export interface Newsletter {
+  schoolId: string;
+  /** "2026-09" */
+  month: string;
+  sentOn: string;
+  from: string;
+  sections: NewsletterSection[];
+  curriculumIntro?: string;
+  curriculum: CurriculumGroup[];
+  signoff: string;
+  updatedAt: string;
+}
+
 export interface Classroom {
   classroomId: string;
   schoolId: string;
@@ -157,4 +195,6 @@ export interface SessionUser {
   prefs: ChannelPrefs;
   children: Child[];
   classroomIds: string[];
+  /** Names of the classrooms the children are in, keyed by id. */
+  classroomNames: Record<string, string>;
 }

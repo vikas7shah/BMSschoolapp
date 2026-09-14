@@ -22,6 +22,7 @@ export class Tables extends Construct {
   readonly dedupe: ddb.Table;
   readonly rateLimit: ddb.Table;
   readonly loginChannels: ddb.Table;
+  readonly newsletters: ddb.Table;
 
   constructor(scope: Construct, id: string, props: TablesProps) {
     super(scope, id);
@@ -152,6 +153,14 @@ export class Tables extends Construct {
       ...ephemeral,
       partitionKey: { name: 'username', type: S },
     });
+
+    // One item per month: the school's letter, split into headed sections,
+    // with the curriculum per group. The office writes it; parents read it.
+    this.newsletters = new ddb.Table(this, 'Newsletters', {
+      ...durable,
+      partitionKey: { name: 'schoolId', type: S },
+      sortKey: { name: 'month', type: S },
+    });
   }
 
   /** Environment variables every backend function needs. */
@@ -168,6 +177,7 @@ export class Tables extends Construct {
       TABLE_DEDUPE: this.dedupe.tableName,
       TABLE_RATELIMIT: this.rateLimit.tableName,
       TABLE_LOGIN_CHANNEL: this.loginChannels.tableName,
+      TABLE_NEWSLETTERS: this.newsletters.tableName,
     };
   }
 
@@ -175,7 +185,7 @@ export class Tables extends Construct {
     return [
       this.users, this.children, this.guardianships, this.classrooms, this.slots,
       this.schools, this.notifications, this.push, this.dedupe, this.rateLimit,
-      this.loginChannels,
+      this.loginChannels, this.newsletters,
     ];
   }
 }

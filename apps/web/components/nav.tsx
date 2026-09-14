@@ -8,6 +8,7 @@ const ITEMS = [
   { href: '/', label: 'Home', icon: HomeIcon },
   { href: '/snacks/', label: 'Snacks', icon: AppleIcon },
   { href: '/calendar/', label: 'Calendar', icon: CalendarIcon },
+  { href: '/news/', label: 'News', icon: NewsIcon },
   { href: '/me/', label: 'You', icon: PersonIcon },
 ] as const;
 
@@ -59,6 +60,16 @@ function HomeIcon({ filled }: IconProps) {
     <svg viewBox="0 0 24 24" className="size-6" aria-hidden {...(filled ? { fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.5 } : stroke)}>
       <path d="M3 10.5 12 3l9 7.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
       <path d="M5.5 9.5V20h13V9.5" />
+    </svg>
+  );
+}
+
+function NewsIcon({ filled }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className="size-6" aria-hidden {...(filled ? { fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.2 } : stroke)}>
+      <path d="M4 4.5h12.5a1 1 0 0 1 1 1V18a2 2 0 0 0 2 2H5a1 1 0 0 1-1-1z" />
+      <path d="M17.5 8.5h1.5a1 1 0 0 1 1 1V18a2 2 0 0 1-2 2" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
+      <path d="M7.5 8.5h6M7.5 12h6M7.5 15.5h6" fill="none" stroke={filled ? '#fff' : 'currentColor'} strokeWidth={1.8} strokeLinecap="round" />
     </svg>
   );
 }
