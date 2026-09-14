@@ -13,7 +13,11 @@ const CHANNEL_COPY: Record<Channel, { label: string; hint: string }> = {
   sms: {
     label: 'Text message',
     // This wording is the consent the carrier registration describes.
-    hint: 'Yes, text me snack-day reminders at my number. Message and data rates may apply; reply STOP to stop.',
+    // Carrier-reviewed consent wording: names SMS, what the texts are, and
+    // how often. Change it and the toll-free registration must be updated.
+    hint: 'I agree to receive SMS text messages from Burlington Montessori School at my number: '
+      + 'snack-day reminders and sign-in codes, about 2–4 a month. Message and data rates may apply. '
+      + 'Reply STOP to opt out, HELP for help.',
   },
   email: { label: 'Email', hint: 'A copy in your inbox.' },
   push: { label: 'Push notification', hint: 'Alerts on this device.' },
