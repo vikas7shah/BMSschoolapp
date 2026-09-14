@@ -17,7 +17,7 @@
     "typecheck": "npm run typecheck --workspaces --if-present",
     "dev:web": "npm run dev -w @bms/web",
     "build:web": "npm run build -w @bms/web",
-    "deploy": "npm run build:shared && npm run build:web && npm run deploy -w @bms/infra",
+    "deploy": "npm run build:shared && npm run build:web && npm run deploy -w @bms/infra && npm run test-families",
     "destroy": "npm run destroy -w @bms/infra",
     "test": "npm run test -w @bms/shared && npm run test -w @bms/web",
     "setup": "node scripts/setup.mjs",
@@ -26,6 +26,7 @@
     "reminders:dry-run": "node scripts/reminders.mjs --dry-run",
     "reminders:run": "node scripts/reminders.mjs",
     "dev-login": "node scripts/dev-login.mjs",
+    "test-families": "node scripts/test-families.mjs",
     "icons": "node scripts/generate-icons.mjs",
     "diff": "npm run diff -w @bms/infra",
     "verify-sender": "node scripts/verify-sender.mjs"

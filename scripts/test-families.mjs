@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+/**
+ * Three test families — one child in each classroom, each with a parent whose
+ * mail lands in one real inbox — so every reminder scenario can be exercised
+ * against the live app. Runs through the real admin API (sign-in with the
+ * admin code, then the roster import), so it is also a smoke test of that
+ * path after each deploy.
+ *
+ *   node scripts/test-families.mjs            create or re-link (idempotent)
+ *   node scripts/test-families.mjs --remove   delete them, children included
+ *
+ * Skips itself when the admin code is not deployed (devLogin false), which is
+ * the state the app is in once the school goes live.
+ */
+import { readFileSync } from 'node:fs';
+import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { REGION, STACK, stackOutputs } from './lib/stack.mjs';
+
+const INBOX = 'yogitaj508@gmail.com';
+// Gmail delivers user+anything@ to user@ — three distinct addresses in the
+// app (the app requires one address per account), one inbox for the tester.
+const [local, domain] = INBOX.split('@');
+const FAMILIES = [1, 2, 3].map((n) => ({
+  firstName: `Yogita${n}`, lastName: 'Test', email: `${local}+test${n}@${domain}`,
+  child: { firstName: `Testchild${n}`, lastName: 'Test' },
+}));
+
+const remove = process.argv.includes('--remove');
+const context = JSON.parse(readFileSync(new URL('../infra/cdk.json', import.meta.url), 'utf8')).context;
+if (context.devLogin !== true) {
+  console.log('devLogin is off — no admin code, so no test families. Nothing to do.');
+  process.exit(0);
+}
+
+const outputs = await stackOutputs();
+const base = outputs.AppUrl;
+if (!base) throw new Error('No app URL in stack outputs');
+
+const sm = new SecretsManagerClient({ region: REGION });
+const { SecretString: code } = await sm.send(new GetSecretValueCommand({ SecretId: `bms-${STACK.replace(/^Bms-/, '')}-dev-login` }));
+
+let cookie = '';
+async function call(method, path, body) {
+  const r = await fetch(`${base}${path}`, {
+    method,
+    headers: { 'content-type': 'application/json', cookie },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const setCookie = r.headers.get('set-cookie');
+  if (setCookie) cookie = setCookie.split(';')[0];
+  const json = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(`${method} ${path} → ${r.status} ${json.error ?? ''}`);
+  return json;
+}
+
+await call('POST', '/api/auth/test', { code });
+const { classrooms } = await call('GET', '/api/admin/classrooms');
+if (classrooms.length < FAMILIES.length) throw new Error(`Need ${FAMILIES.length} classrooms, found ${classrooms.length}`);
+const rooms = [...classrooms].sort((a, b) => a.name.localeCompare(b.name));
+
+if (remove) {
+  const { parents } = await call('GET', '/api/admin/parents');
+  let gone = 0;
+  for (const f of FAMILIES) {
+    const p = parents.find((u) => u.email === f.email);
+    if (!p) continue;
+    const r = await call('DELETE', `/api/admin/parents/${p.userId}`);
+    console.log(`Removed ${f.firstName} (${r.childrenRemoved} child, ${r.daysReopened} day(s) reopened)`);
+    gone += 1;
+  }
+  console.log(gone ? 'Test families removed.' : 'No test families found.');
+  process.exit(0);
+}
+
+const r = await call('POST', '/api/admin/parents/import', {
+  families: FAMILIES.map((f, i) => ({
+    firstName: f.firstName, lastName: f.lastName, email: f.email,
+    children: [{ ...f.child, classroomId: rooms[i].classroomId }],
+  })),
+  children: [],
+});
+const s = r.summary;
+const kids = r.results.reduce((n, x) => n + (x.childrenCreated ?? 0), 0);
+console.log(`Test families: ${s.created} created, ${s.linked} already there, ${s.failed} failed, ${kids} children created`);
+if (s.failed) { console.error(JSON.stringify(r.results, null, 2)); process.exit(1); }
+
+// The dashboard must now see one unbooked family in every classroom.
+const overview = await call('GET', '/api/admin/overview');
+for (const room of overview.byClassroom) {
+  if (room.unbookedFamilies < 1) { console.error(`${room.name}: expected an unbooked test family, saw ${room.unbookedFamilies}`); process.exit(1); }
+}
+console.log(`Dashboard sees an unbooked family in each of ${overview.byClassroom.length} classrooms. ✓`);
+for (const f of FAMILIES) console.log(`  ${f.firstName} ${f.lastName} <${f.email}> — ${f.child.firstName}`);

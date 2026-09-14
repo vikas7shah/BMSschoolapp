@@ -577,6 +577,21 @@ node scripts/prune-roster.mjs --keep <userId>,<userId>
 Reports only; add `--apply` to do it. User ids are on the admin Families
 screen. The roster can be re-imported from the school's spreadsheet afterwards.
 
+**Test families.** Three parents — Yogita1/2/3 Test, one child each, one per
+classroom — whose mail all lands in one real inbox (`yogitaj508+test1@…`,
+`+test2`, `+test3`: Gmail treats these as one mailbox, the app as three
+accounts). They exist to exercise every reminder scenario against the live app.
+`npm run deploy` seeds them after every deploy, through the real admin API,
+and checks the dashboard sees one unbooked family per classroom — so it doubles
+as a smoke test of sign-in, import and overview. Idempotent. Before go-live:
+
+```bash
+npm run test-families -- --remove
+```
+
+The seed steps aside on its own once `devLogin` is false, so switching the
+admin code off also stops the test families coming back.
+
 **Sending one parent a test reminder** — runs the sweep for that parent alone,
 ignoring the send hour:
 
