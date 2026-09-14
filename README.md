@@ -576,6 +576,12 @@ link all go. Then remove the *School Admin* row under Admin → Families.
 Their sign-in goes, the links to their children go, a child with no other
 guardian goes too, and any snack day they held reopens.
 
+**Removing a child** — Admin → Families → Children → *Remove*. Days booked
+for the child reopen, and each parent is removed **only if this was their
+last child** — a sibling never loses their family. Both live in
+`services/api/src/removal.ts`; the smoke test removes a test child, checks
+the parent went with them, and re-seeds.
+
 
 **Testing with a few real families** — remove every parent and child except
 the ones named, with a full backup written to `backups/` (git-ignored) first:

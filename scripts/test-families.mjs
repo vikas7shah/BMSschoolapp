@@ -108,4 +108,26 @@ if (open) {
   }
   console.log('A day cannot be taken for a child that is not yours. ✓');
 }
+// Removing a child takes a parent with it only when that was their last
+// child. Testchild1 is Yogita1's only child, so both must go — then the
+// seed puts them back, which proves the import path a second time.
+{
+  const { parents } = await call('GET', '/api/admin/parents');
+  const p1 = parents.find((u) => u.email === FAMILIES[0].email);
+  const kid = p1?.children.find((k) => k.firstName === FAMILIES[0].child.firstName);
+  if (!p1 || !kid) { console.error('Test family 1 not found for the removal check'); process.exit(1); }
+  const r = await call('DELETE', `/api/admin/children/${kid.childId}`);
+  const after = await call('GET', '/api/admin/parents');
+  if (r.parentsRemoved !== 1 || after.parents.some((u) => u.email === FAMILIES[0].email)) {
+    console.error(`Expected removing ${kid.firstName} to remove ${p1.firstName} too; got ${JSON.stringify(r)}`);
+    process.exit(1);
+  }
+  console.log('Removing an only child removes the parent too. ✓');
+  const again = await call('POST', '/api/admin/parents/import', {
+    families: [{ ...FAMILIES[0], child: undefined, children: [{ ...FAMILIES[0].child, classroomId: rooms[0].classroomId }] }],
+    children: [],
+  });
+  if (again.summary.created !== 1) { console.error(`Re-seed of family 1 failed: ${JSON.stringify(again.summary)}`); process.exit(1); }
+}
+
 for (const f of FAMILIES) console.log(`  ${f.firstName} ${f.lastName} <${f.email}> — ${f.child.firstName}`);

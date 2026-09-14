@@ -5,13 +5,13 @@ import {
   type Child, type ImportResult,
 } from '@bms/shared';
 import {
-  childIdsForGuardian, childrenForGuardian, createChild, createClassroom, createUser, deleteChild,
-  deleteUser, getUserByEmail, guardianIdsForChild,
-  getClassroom, getSchool, getUserByPhone, linkGuardian, listAllGuardianships, listChildren,
-  coverageByMonth, endOfNextMonth, invokeReminders, listClassrooms, listSlotsBySchool, listUsers,
-  markNudged, publishRange, releaseSlot, setRemindersPaused, unbookedParents, unlinkGuardian, updateUser,
+  childrenForGuardian, coverageByMonth, createChild, createClassroom, createUser, deleteUser, endOfNextMonth,
+  getClassroom, getSchool, getUserByEmail, getUserByPhone, invokeReminders, linkGuardian,
+  listAllGuardianships, listChildren, listClassrooms, listSlotsBySchool, listUsers, markNudged,
+  publishRange, setRemindersPaused, unbookedParents, updateUser,
 } from '@bms/backend';
-import { createCognitoUser, deleteCognitoUser } from '../cognito.js';
+import { createCognitoUser } from '../cognito.js';
+import { removeChild, removeParent } from '../removal.js';
 import type { Vars } from '../app.js';
 
 const route = new Hono<{ Variables: Vars }>();
@@ -170,36 +170,17 @@ route.delete('/api/admin/parents/:userId', async (c) => {
   const admin = c.get('user');
   const userId = c.req.param('userId');
   if (userId === admin.userId) return c.json({ error: 'You cannot remove yourself' }, 400);
+  const r = await removeParent(admin.schoolId, userId);
+  if (r === 'NOT_FOUND') return c.json({ error: 'Not found' }, 404);
+  return c.json({ ok: true, ...r });
+});
 
-  const { getUser } = await import('@bms/backend');
-  const target = await getUser(userId);
-  if (!target || target.schoolId !== admin.schoolId) return c.json({ error: 'Not found' }, 404);
-
-  // Everything that hangs off the account goes with it: the sign-in, the
-  // links to children, children nobody else is a guardian of, and any snack
-  // day they were holding — which reopens so another family can take it.
-  const childIds = await childIdsForGuardian(userId);
-  let childrenRemoved = 0;
-  for (const childId of childIds) {
-    await unlinkGuardian(userId, childId);
-    const others = (await guardianIdsForChild(childId)).filter((id) => id !== userId);
-    if (!others.length) {
-      await deleteChild(childId);
-      childrenRemoved += 1;
-    }
-  }
-
-  const school = await getSchool(admin.schoolId);
-  const today = todayIn(school?.timezone ?? 'America/New_York');
-  const held = (await listSlotsBySchool(admin.schoolId, today, addDaysSafe(today, 400)))
-    .filter((s) => s.status === 'CLAIMED' && s.claimedByUserId === userId);
-  for (const s of held) {
-    await releaseSlot({ classroomId: s.classroomId, date: s.date, userId: admin.userId, isAdmin: true });
-  }
-
-  await deleteCognitoUser(target.cognitoUsername ?? target.phone ?? '');
-  await deleteUser(userId);
-  return c.json({ ok: true, childrenRemoved, daysReopened: held.length });
+/** Removing a child also removes a parent whose only child this was. */
+route.delete('/api/admin/children/:childId', async (c) => {
+  const admin = c.get('user');
+  const r = await removeChild(admin.schoolId, c.req.param('childId'));
+  if (r === 'NOT_FOUND') return c.json({ error: 'Not found' }, 404);
+  return c.json({ ok: true, ...r });
 });
 
 /**
@@ -536,8 +517,5 @@ function classroomOfChild(
   return children.find((k) => ids.has(k.childId) && k.firstName === firstName)?.classroomId;
 }
 
-function addDaysSafe(date: string, days: number): string {
-  return new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
-}
 
 export default route;

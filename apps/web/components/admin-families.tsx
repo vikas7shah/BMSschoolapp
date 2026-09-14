@@ -100,26 +100,16 @@ export function AdminFamilies({ parents, children, classrooms, onChanged, onErro
                 <span className="shrink-0 text-sm text-muted">{kids.length}</span>
               </div>
               <ul className="mt-3 divide-y divide-line">
-                {kids.map((child) => {
-                  const guardians = guardiansOf.get(child.childId) ?? [];
-                  return (
-                    <li key={child.childId} className="py-2.5">
-                      <p className="text-sm font-medium text-ink">
-                        {child.firstName} {child.lastName}
-                      </p>
-                      {clashes.has(child.childId) && (
-                        <p className="mt-0.5 text-xs font-medium text-clay">Sibling in the same classroom</p>
-                      )}
-                      {guardians.length ? (
-                        <p className="mt-0.5 text-xs text-muted">
-                          {guardians.map((g) => `${g.firstName} ${g.lastName}`).join(' · ')}
-                        </p>
-                      ) : (
-                        <p className="mt-0.5 text-xs font-medium text-clay">No parent linked</p>
-                      )}
-                    </li>
-                  );
-                })}
+                {kids.map((child) => (
+                  <ChildRow
+                    key={child.childId}
+                    child={child}
+                    guardians={guardiansOf.get(child.childId) ?? []}
+                    clash={clashes.has(child.childId)}
+                    onChanged={onChanged}
+                    onError={onError}
+                  />
+                ))}
               </ul>
             </Card>
           ))}
@@ -146,6 +136,84 @@ export function AdminFamilies({ parents, children, classrooms, onChanged, onErro
         </>
       )}
     </div>
+  );
+}
+
+function ChildRow({ child, guardians, clash, onChanged, onError }: {
+  child: Child;
+  guardians: Parent[];
+  clash: boolean;
+  onChanged: (msg: string) => void;
+  onError: (msg: string) => void;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  // A parent goes with the child only when this was their last child.
+  const leaving = guardians.filter((g) => g.children.length === 1);
+
+  async function remove() {
+    setBusy(true);
+    try {
+      const r = await api.del<{ parentsRemoved: number; daysReopened: number }>(`/api/admin/children/${child.childId}`);
+      const bits = [`Removed ${child.firstName} ${child.lastName}`];
+      if (r.parentsRemoved) bits.push(`${r.parentsRemoved} ${r.parentsRemoved === 1 ? 'parent' : 'parents'}`);
+      if (r.daysReopened) bits.push(`reopened ${r.daysReopened} snack ${r.daysReopened === 1 ? 'day' : 'days'}`);
+      onChanged(bits.join(', ') + '.');
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Could not remove that child.');
+      setBusy(false);
+    }
+  }
+
+  return (
+    <li className="py-2.5">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-ink">
+            {child.firstName} {child.lastName}
+          </p>
+          {clash && (
+            <p className="mt-0.5 text-xs font-medium text-clay">Sibling in the same classroom</p>
+          )}
+          {guardians.length ? (
+            <p className="mt-0.5 text-xs text-muted">
+              {guardians.map((g) => `${g.firstName} ${g.lastName}`).join(' · ')}
+            </p>
+          ) : (
+            <p className="mt-0.5 text-xs font-medium text-clay">No parent linked</p>
+          )}
+        </div>
+        {!confirming && (
+          <button
+            type="button"
+            onClick={() => setConfirming(true)}
+            className="shrink-0 text-[11px] text-muted underline underline-offset-2"
+          >
+            Remove
+          </button>
+        )}
+      </div>
+
+      {confirming && (
+        <div className="mt-2 rounded-xl bg-clay-soft p-3 text-xs text-clay">
+          <p>
+            Remove {child.firstName}? Any snack day booked for {child.firstName} reopens.
+            {leaving.length > 0 && (
+              <> {leaving.map((g) => g.firstName).join(' and ')} {leaving.length === 1 ? 'has' : 'have'} no
+              other child here, so {leaving.length === 1 ? 'their account goes' : 'their accounts go'} too.</>
+            )}
+            {guardians.length > leaving.length && (
+              <> {guardians.filter((g) => g.children.length > 1).map((g) => g.firstName).join(' and ')} stays
+              for their other {guardians.filter((g) => g.children.length > 1).length === 1 ? 'child' : 'children'}.</>
+            )}
+          </p>
+          <div className="mt-2 flex gap-2">
+            <Button size="sm" variant="danger" loading={busy} onClick={() => void remove()}>Remove</Button>
+            <Button size="sm" variant="ghost" onClick={() => setConfirming(false)}>Keep</Button>
+          </div>
+        </div>
+      )}
+    </li>
   );
 }
 
