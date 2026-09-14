@@ -166,25 +166,12 @@ export default function HomePage() {
           </section>
         )}
 
-        {myCurriculum.length > 0 && latest && (
-          <section aria-labelledby="class-heading" className={col}>
-            <p id="class-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              This month in class
+        {latest && (
+          <section aria-labelledby="month-heading" className={col}>
+            <p id="month-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+              This month
             </p>
             <div className="space-y-3">
-              {myCurriculum.map((g) => (
-                <CurriculumCard key={g.group} group={g} month={latest.month} tag={tagFor(g.group)} link />
-              ))}
-            </div>
-          </section>
-        )}
-
-        <section aria-labelledby="up-heading" className={col}>
-          <p id="up-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Coming up
-          </p>
-          <div className="space-y-3">
-            {latest && (
               <Card className="border-transparent bg-sage-soft">
                 <h2 className="font-semibold text-sage-dark">
                   {monthLabel(latest.month).replace(/ \d{4}$/, '')} newsletter
@@ -197,7 +184,18 @@ export default function HomePage() {
                   <Button size="sm">Read it</Button>
                 </Link>
               </Card>
-            )}
+              {myCurriculum.map((g) => (
+                <CurriculumCard key={g.group} group={g} month={latest.month} tag={tagFor(g.group)} link />
+              ))}
+            </div>
+          </section>
+        )}
+
+        <section aria-labelledby="up-heading" className={col}>
+          <p id="up-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            Coming up
+          </p>
+          <div className="space-y-3">
             {events.length > 0 && (
               <Card>
                 <div className="flex items-baseline justify-between gap-3">
