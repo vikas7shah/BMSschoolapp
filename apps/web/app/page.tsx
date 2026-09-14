@@ -2,13 +2,16 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { formatLong, formatShort, monthOf, relativeLabel } from '@bms/shared';
+import {
+  SCHOOL_EVENTS, formatLong, formatShort, monthLabel, monthOf, relativeLabel,
+} from '@bms/shared';
 import { api, type Notification, type OverviewData, type Slot } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallCard } from '@/components/install-card';
 import { Banner, Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import { Coverage } from '@/components/coverage';
+import { EventList } from '@/components/event-list';
 
 
 interface MineResponse { today: string; slots: Slot[] }
@@ -16,7 +19,6 @@ interface MineResponse { today: string; slots: Slot[] }
 export default function HomePage() {
   const { me } = useSession();
   const [mine, setMine] = useState<MineResponse | null>(null);
-  const [openCount, setOpenCount] = useState<number | null>(null);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<OverviewData | null>(null);
@@ -28,15 +30,11 @@ export default function HomePage() {
   const isParent = !isAdmin || (me?.children.length ?? 0) > 0;
 
   const load = useCallback(async () => {
-    const [m, board, notes] = await Promise.all([
+    const [m, notes] = await Promise.all([
       api.get<MineResponse>('/api/snacks/mine'),
-      api.get<{ slots: Slot[] }>('/api/snacks'),
       api.get<{ unread: number; notifications: Notification[] }>('/api/notifications'),
     ]);
     setMine(m);
-    // Just this month: a whole year of open days is not a number a parent can act on.
-    const month = monthOf(m.today ?? new Date().toISOString().slice(0, 10));
-    setOpenCount(board.slots.filter((s) => s.status === 'OPEN' && monthOf(s.date) === month).length);
     setUnread(notes.unread);
     setLoading(false);
   }, []);
@@ -49,7 +47,21 @@ export default function HomePage() {
 
   useEffect(() => { void load().catch(() => setLoading(false)); }, [load]);
 
-  const next = mine?.slots[0];
+  // Home is this month and next. Days further out exist (a family can book
+  // as far as June) but are noise here; they surface as their month arrives.
+  const today = mine?.today ?? new Date().toISOString().slice(0, 10);
+  const nextMonth = monthOf(addMonths(today, 1));
+  const window = new Set([monthOf(today), nextMonth]);
+  const soon = mine?.slots.filter((s) => window.has(monthOf(s.date))) ?? [];
+  const later = (mine?.slots.length ?? 0) - soon.length;
+  const next = soon[0];
+
+  // This month's events from today on; when the month is spent, next month's.
+  const eventsIn = (month: string) => SCHOOL_EVENTS.filter(
+    (e) => monthOf(e.date) === month && (e.endDate ?? e.date) >= today,
+  );
+  const eventMonth = eventsIn(monthOf(today)).length ? monthOf(today) : nextMonth;
+  const events = eventsIn(eventMonth);
 
   return (
     <Shell>
@@ -81,7 +93,7 @@ export default function HomePage() {
           <ul className="space-y-3">
             {/* Every booked day, each naming the child — a family with two
                 children sees both, not the nearest one and a count. */}
-            {mine!.slots.map((slot, i) => {
+            {soon.map((slot, i) => {
               const soonest = i === 0;
               const who = slot.claimedForChildName;
               // relativeLabel falls back to the date beyond a week, which
@@ -120,26 +132,32 @@ export default function HomePage() {
               );
             })}
           </ul>
+          {later > 0 && (
+            <p className="mt-3 px-1 text-xs text-muted">
+              {later} more {later === 1 ? 'day' : 'days'} later in the year — they&apos;ll show here as
+              their month comes round.
+            </p>
+          )}
         </section>
       ) : (
         <EmptyState
-          title="No snack day booked"
-          body="Families take turns bringing a dry snack and fruit. Pick a day that works for you."
-          action={<Link href="/snacks/"><Button>Find a day</Button></Link>}
+          title={later > 0 ? 'Nothing this month or next' : 'No snack day booked'}
+          body={later > 0
+            ? `Your ${later === 1 ? 'day is' : 'days are'} later in the year — ${later === 1 ? 'it' : 'they'}'ll show here as the month comes round.`
+            : 'Families take turns bringing a dry snack and fruit. Pick a day that works for you.'}
+          action={<Link href="/snacks/"><Button>{later > 0 ? 'See the calendar' : 'Find a day'}</Button></Link>}
         />
       )}
 
       <div className="mt-4"><InstallCard dismissible /></div>
 
-      {isParent && openCount !== null && openCount > 0 && (
-        <Card className="mt-4 flex items-center justify-between gap-4">
-          <div>
-            <p className="font-semibold text-ink">
-              {openCount} {openCount === 1 ? 'day needs' : 'days need'} a family
-            </p>
-            <p className="mt-0.5 text-sm text-muted">This month, in your classroom.</p>
+      {events.length > 0 && (
+        <Card className="mt-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 className="font-semibold text-ink">{monthLabel(eventMonth).replace(/ \d{4}$/, '')} at school</h2>
+            <Link href="/calendar/" className="text-xs text-muted underline underline-offset-2">Full calendar</Link>
           </div>
-          <Link href="/snacks/"><Button size="sm" variant="secondary">View</Button></Link>
+          <div className="mt-2"><EventList events={events} today={today} /></div>
         </Card>
       )}
 
@@ -153,6 +171,13 @@ export default function HomePage() {
       )}
     </Shell>
   );
+}
+
+/** First of the month `n` months after the given date's. */
+function addMonths(date: string, n: number): string {
+  const y = Number(date.slice(0, 4));
+  const m = Number(date.slice(5, 7)) - 1 + n;
+  return new Date(Date.UTC(y, m, 1)).toISOString().slice(0, 10);
 }
 
 function greeting(): string {

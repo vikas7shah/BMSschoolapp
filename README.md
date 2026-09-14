@@ -375,6 +375,14 @@ regular classes are not running.
 On the snack calendar, a closed weekday shows as **Closed** rather than simply
 being blank, and tapping it names the holiday.
 
+## A family's days are the family's
+
+Home shows the days booked for *your children* — by you or by the other
+parent — for this month and next, with a note about how many sit later in
+the year. Either parent can give a day back or switch it; the calendar marks
+it as yours for both. Home also lists the rest of this month's school events
+(next month's once this month's are past).
+
 ## Only your own child
 
 A snack day is always taken *for a child*, and only by that child's own
@@ -401,6 +409,11 @@ round the lock. Each day now records the child's id, not just their name, so
 the count is exact.
 
 ## When a family can change a day
+
+A switch (moving the child's one day this month to another) is a release of
+the old day, so the same notice applies: inside the window the *Switch to…*
+button is greyed out and the panel says why, rather than letting the tap fail.
+
 
 Two locks, both in `packages/shared/src/rules.ts` as one pure function so the
 API enforces exactly what the app explains:

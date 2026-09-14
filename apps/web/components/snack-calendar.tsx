@@ -199,6 +199,10 @@ function DayDetail({
   const blocked = releaseBlockedReason({
     date, today, classroomHasOpenDay: !classroomFull, isAdmin,
   });
+  // A switch gives up the old day, so the old day's notice rule decides it.
+  const switchBlocked = switchFrom
+    ? releaseBlockedReason({ date: switchFrom, today, classroomHasOpenDay: true, isAdmin })
+    : null;
 
   return (
     <section
@@ -299,10 +303,17 @@ function DayDetail({
                   <p className="text-sm leading-relaxed text-[#8a6414]">
                     {forChildName ?? 'This child'} already has{' '}
                     <strong className="font-semibold">{formatShort(switchFrom)}</strong> this month.
-                    Families take one day a month — switch to {formatShort(date)} instead?
+                    {switchBlocked
+                      ? ` ${RELEASE_BLOCK_MESSAGE[switchBlocked]}`
+                      : ` Families take one day a month — switch to ${formatShort(date)} instead?`}
                   </p>
                   <div className="mt-3 flex flex-col gap-2">
-                    <Button loading={busy} className="w-full" onClick={() => onClaim(slot, switchFrom)}>
+                    <Button
+                      loading={busy}
+                      disabled={!!switchBlocked}
+                      className="w-full"
+                      onClick={() => onClaim(slot, switchFrom)}
+                    >
                       Switch to {shortDay(date)}
                     </Button>
                     <Button variant="ghost" className="w-full" onClick={onClose}>

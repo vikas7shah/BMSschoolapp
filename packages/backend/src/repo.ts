@@ -417,16 +417,25 @@ export async function claimSlot(args: {
   }
 }
 
-/** Releases a slot; only the claimant (or an admin) may do so. */
+/**
+ * Releases a slot. The claimant may, either parent of the child it is for
+ * may (pass their childIds), and an admin always may.
+ */
 export async function releaseSlot(args: {
-  classroomId: string; date: string; userId: string; isAdmin: boolean;
+  classroomId: string; date: string; userId: string; isAdmin: boolean; childIds?: Iterable<string>;
 }): Promise<SnackSlot | 'FORBIDDEN' | 'NOT_FOUND'> {
   const names: Record<string, string> = { '#s': 'status' };
   const values: Record<string, unknown> = { ':open': 'OPEN', ':t': nowIso() };
   let condition = 'attribute_exists(sk)';
   if (!args.isAdmin) {
-    condition += ' AND claimedByUserId = :u';
+    const kids = [...(args.childIds ?? [])];
     values[':u'] = args.userId;
+    if (kids.length) {
+      kids.forEach((id, i) => { values[`:k${i}`] = id; });
+      condition += ` AND (claimedByUserId = :u OR claimedForChildId IN (${kids.map((_, i) => `:k${i}`).join(', ')}))`;
+    } else {
+      condition += ' AND claimedByUserId = :u';
+    }
   }
   try {
     const r = await ddb.send(new UpdateCommand({

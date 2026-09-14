@@ -2,26 +2,13 @@
 
 import { useMemo } from 'react';
 import {
-  SCHOOL_EVENTS, SCHOOL_YEAR, eventDates, formatShort, todayIn, type SchoolEvent,
+  SCHOOL_EVENTS, SCHOOL_YEAR, formatShort, monthLabel, monthOf, todayIn, type SchoolEvent,
 } from '@bms/shared';
 import { BottomNav } from '@/components/nav';
 import { TopBar } from '@/components/top-bar';
+import { EventList } from '@/components/event-list';
 import { useSession } from '@/lib/session';
 import { Card } from '@/components/ui';
-
-const monthKey = (d: string) => d.slice(0, 7);
-const monthLabel = (m: string) =>
-  new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-    .format(new Date(`${m}-01T00:00:00Z`));
-
-/** "12" / "26–27" / "24 Dec – 1 Jan" depending on how far the event spans. */
-function dayLabel(event: SchoolEvent): string {
-  if (!event.endDate || event.endDate === event.date) return String(Number(event.date.slice(8)));
-  if (monthKey(event.date) === monthKey(event.endDate)) {
-    return `${Number(event.date.slice(8))}–${Number(event.endDate.slice(8))}`;
-  }
-  return `${formatShort(event.date).replace(/^\w+, /, '')} – ${formatShort(event.endDate).replace(/^\w+, /, '')}`;
-}
 
 /**
  * Readable without signing in, like the snack guide: it is school event
@@ -34,7 +21,7 @@ export default function CalendarPage() {
   const months = useMemo(() => {
     const grouped = new Map<string, SchoolEvent[]>();
     for (const e of SCHOOL_EVENTS) {
-      const key = monthKey(e.date);
+      const key = monthOf(e.date);
       grouped.set(key, [...(grouped.get(key) ?? []), e]);
     }
     return [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]));
@@ -76,27 +63,7 @@ export default function CalendarPage() {
           return (
             <Card key={month} className={done ? 'opacity-60' : ''}>
               <h2 className="font-semibold text-ink">{monthLabel(month)}</h2>
-              <ul className="mt-3 divide-y divide-line">
-                {events.map((e) => (
-                  <li key={`${e.date}-${e.title}`} className="flex gap-3 py-2.5">
-                    <span
-                      className={`w-16 shrink-0 text-sm font-semibold tabular-nums
-                        ${eventDates(e).includes(today) ? 'text-clay' : 'text-muted'}`}
-                    >
-                      {dayLabel(e)}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm text-ink">{e.title}</p>
-                      {e.time && <p className="text-xs text-muted">{e.time}</p>}
-                      <div className="mt-1 flex flex-wrap gap-1.5">
-                        {e.closed && <Tag tone="closed">No school</Tag>}
-                        {e.vacationCare && <Tag tone="info">Vacation care only</Tag>}
-                        {e.halfDay && <Tag tone="warn">Half day</Tag>}
-                      </div>
-                    </div>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-3"><EventList events={events} today={today} /></div>
             </Card>
           );
         })}
@@ -108,18 +75,5 @@ export default function CalendarPage() {
       </main>
       {me && <BottomNav />}
     </>
-  );
-}
-
-function Tag({ tone, children }: { tone: 'closed' | 'warn' | 'info'; children: React.ReactNode }) {
-  const tones = {
-    closed: 'bg-clay-soft text-clay',
-    warn: 'bg-sun-soft text-[#8a6414]',
-    info: 'bg-sage-soft text-sage-dark',
-  };
-  return (
-    <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${tones[tone]}`}>
-      {children}
-    </span>
   );
 }

@@ -25,7 +25,18 @@ async function visibleClassroomIds(user: Vars['user']): Promise<string[]> {
  * board — that is what a whiteboard would have said — with the parent's name
  * kept alongside for the day detail.
  */
-function publicSlot(slot: SnackSlot, viewerId: string) {
+/** A day is "mine" if I booked it or it is for one of my children. */
+function isFamilyDay(slot: SnackSlot, viewer: { userId: string; childIds: Set<string> }): boolean {
+  return slot.claimedByUserId === viewer.userId
+    || (!!slot.claimedForChildId && viewer.childIds.has(slot.claimedForChildId));
+}
+
+async function viewerOf(user: { userId: string }): Promise<{ userId: string; childIds: Set<string> }> {
+  const kids = await childrenForGuardian(user.userId);
+  return { userId: user.userId, childIds: new Set(kids.map((k) => k.childId)) };
+}
+
+function publicSlot(slot: SnackSlot, viewer: { userId: string; childIds: Set<string> }) {
   return {
     classroomId: slot.classroomId,
     date: slot.date,
@@ -34,7 +45,7 @@ function publicSlot(slot: SnackSlot, viewerId: string) {
     claimedForChildName: slot.claimedForChildName,
     claimedForChildId: slot.claimedForChildId,
     note: slot.note,
-    isMine: slot.claimedByUserId === viewerId,
+    isMine: isFamilyDay(slot, viewer),
   };
 }
 
@@ -61,6 +72,7 @@ route.get('/api/snacks', async (c) => {
     .filter((cl) => classroomIds.includes(cl.classroomId));
 
   const slotLists = await Promise.all(classroomIds.map((id) => listSlots(id, from, to)));
+  const viewer = await viewerOf(user);
 
   // Computed server-side so the app explains exactly what the API will enforce.
   const openFlags = await Promise.all(
@@ -79,7 +91,7 @@ route.get('/api/snacks', async (c) => {
       /** Every upcoming day is taken, so parents can no longer swap out. */
       full: !openFlags[i],
     })),
-    slots: slotLists.flat().map((s) => publicSlot(s, user.userId)),
+    slots: slotLists.flat().map((s) => publicSlot(s, viewer)),
   });
 });
 
@@ -87,15 +99,24 @@ route.get('/api/snacks/mine', async (c) => {
   const user = c.get('user');
   const school = await getSchool(user.schoolId);
   const today = todayIn(school?.timezone ?? 'America/Los_Angeles');
-  const slots = await slotsForUser(user.userId, today);
   const classrooms = await listClassrooms(user.schoolId);
   const nameOf = new Map(classrooms.map((cl) => [cl.classroomId, cl.name]));
+
+  // The family's days, not just the ones this parent tapped: a day booked
+  // for a child by one parent is on the other parent's Home too.
+  const kids = await childrenForGuardian(user.userId);
+  const viewer = { userId: user.userId, childIds: new Set(kids.map((k) => k.childId)) };
+  const rooms = [...new Set(kids.map((k) => k.classroomId))];
+  const forKids = (await Promise.all(rooms.map((id) => listSlots(id, today, SCHOOL_YEAR.end)))).flat()
+    .filter((s) => s.status === 'CLAIMED' && isFamilyDay(s, viewer));
+  const own = await slotsForUser(user.userId, today);
+  const slots = [...new Map([...own, ...forKids].map((s) => [`${s.classroomId}#${s.date}`, s])).values()];
 
   return c.json({
     today,
     slots: slots
       .sort((a, b) => a.date.localeCompare(b.date))
-      .map((s) => ({ ...publicSlot(s, user.userId), classroomName: nameOf.get(s.classroomId) })),
+      .map((s) => ({ ...publicSlot(s, viewer), classroomName: nameOf.get(s.classroomId) })),
   });
 });
 
@@ -166,9 +187,7 @@ route.post('/api/snacks/claim', async (c) => {
       isAdmin,
     });
     if (blocked) return c.json({ error: RELEASE_BLOCK_MESSAGE[blocked], code: blocked }, 403);
-    if (!isAdmin && existing.claimedByUserId !== user.userId) {
-      return c.json({ error: 'That day belongs to another family.' }, 403);
-    }
+    // `existing` was found by the caller's own child, so either parent may move it.
   }
 
   const result = await claimSlot({
@@ -203,7 +222,7 @@ route.post('/api/snacks/claim', async (c) => {
     childName: child?.firstName,
   }), { force: true }).catch((err) => console.error('confirmation failed', err));
 
-  return c.json({ slot: publicSlot(result, user.userId) });
+  return c.json({ slot: publicSlot(result, await viewerOf(user)) });
 });
 
 route.post('/api/snacks/release', async (c) => {
@@ -229,15 +248,16 @@ route.post('/api/snacks/release', async (c) => {
     return c.json({ error: RELEASE_BLOCK_MESSAGE[blocked], code: blocked }, 403);
   }
 
+  const viewer = await viewerOf(user);
   const result = await releaseSlot({
     classroomId, date,
-    userId: user.userId, isAdmin,
+    userId: user.userId, isAdmin, childIds: viewer.childIds,
   });
 
   if (result === 'NOT_FOUND') return c.json({ error: 'That day is not on the calendar' }, 404);
   if (result === 'FORBIDDEN') return c.json({ error: 'That slot belongs to another family' }, 403);
 
-  return c.json({ slot: publicSlot(result, user.userId) });
+  return c.json({ slot: publicSlot(result, viewer) });
 });
 
 export default route;
