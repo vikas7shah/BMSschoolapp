@@ -225,6 +225,10 @@ export class BmsStack extends cdk.Stack {
       },
     });
 
+    // The office's "remind now" runs the reminder job on demand from the API.
+    remindersFn.grantInvoke(apiFn);
+    apiFn.addEnvironment('REMINDERS_FUNCTION', remindersFn.functionName);
+
     for (const fn of [apiFn, remindersFn]) {
       for (const table of tables.all) table.grantReadWriteData(fn);
       sessionSecret.grantRead(fn);

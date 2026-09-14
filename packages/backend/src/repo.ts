@@ -327,6 +327,15 @@ export async function slotsForUser(userId: string, fromDate: string): Promise<Sn
 }
 
 /** Creates an OPEN slot only if that date/type doesn't exist yet. */
+export async function markNudged(classroomId: string, on: string): Promise<void> {
+  await ddb.send(new UpdateCommand({
+    TableName: T.classrooms,
+    Key: { classroomId },
+    UpdateExpression: 'SET nudgedOn = :d',
+    ExpressionAttributeValues: { ':d': on },
+  }));
+}
+
 export async function markPublished(classroomId: string, through: string): Promise<void> {
   await ddb.send(new UpdateCommand({
     TableName: T.classrooms,

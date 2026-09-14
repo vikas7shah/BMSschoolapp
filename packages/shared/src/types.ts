@@ -48,6 +48,8 @@ export interface Classroom {
   snackWeekdays: number[];
   /** Last date snack days have been generated through (the school year's end once done). */
   publishedThrough?: string;
+  /** The day the office last sent a "remind now" to this room's unbooked families. */
+  nudgedOn?: string;
   createdAt: string;
 }
 

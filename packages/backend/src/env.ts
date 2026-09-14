@@ -33,6 +33,7 @@ export const env = {
   appUrlParam: opt('APP_URL_PARAM'),
   fromEmail: opt('FROM_EMAIL'),
   replyTo: opt('REPLY_TO'),
+  remindersFunction: opt('REMINDERS_FUNCTION'),
   /** SES configuration set that reports bounces and complaints. */
   sesConfigSet: opt('SES_CONFIG_SET'),
   schoolName: opt('SCHOOL_NAME'),

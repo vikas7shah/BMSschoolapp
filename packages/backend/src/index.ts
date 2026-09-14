@@ -5,3 +5,5 @@ export * from './secrets.js';
 export * from './appUrl.js';
 export * from './notify.js';
 export * from './publish.js';
+export * from './coverage.js';
+export * from './invoke.js';

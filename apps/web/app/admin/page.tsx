@@ -72,7 +72,13 @@ export default function AdminPage() {
       {flash && <div className="mb-4"><Banner tone="success">{flash}</Banner></div>}
 
       {tab === 'OVERVIEW' && overview && (
-        <AdminOverview overview={overview} room={room} onRoom={setRoom} />
+        <AdminOverview
+          overview={overview}
+          room={room}
+          onRoom={setRoom}
+          onChanged={(msg) => { setFlash(msg); void load(); }}
+          onError={setError}
+        />
       )}
 
       {tab === 'ROSTER' && (

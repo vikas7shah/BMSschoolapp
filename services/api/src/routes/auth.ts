@@ -171,7 +171,7 @@ route.post('/api/auth/test', async (c) => {
   const now = new Date().toISOString();
   const user: User = (await getUser(TEST_ADMIN_ID)) ?? {
     userId: TEST_ADMIN_ID, cognitoUsername: TEST_ADMIN_ID, schoolId: env.schoolId, role: 'ADMIN',
-    firstName: 'School', lastName: 'Admin', status: 'ACTIVE',
+    firstName: 'Admin', lastName: '', status: 'ACTIVE',
     prefs: { ...DEFAULT_PREFS }, createdAt: now, updatedAt: now,
   };
   if (user.createdAt === now) await putUser(user);

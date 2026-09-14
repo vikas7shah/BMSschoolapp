@@ -411,6 +411,15 @@ Changing `RELEASE_NOTICE_DAYS` changes both the rule and the wording.
 
 ## How the reminders work
 
+**The office's view.** An admin's Home is a coverage dashboard, not a family
+page: for each classroom, this month and next, how many days are filled and
+how many families have nothing booked — with a *Remind them* button that sends
+the usual open-days message to exactly those families, right now. It goes
+even while reminders are paused, skips the weekly dedupe, and is limited to
+once a day per classroom. The same card heads Admin → Overview. An admin who
+is also a parent sees their family's days below the dashboard.
+
+
 **Pause switch.** Admin → Set-up → *Reminders* pauses every outgoing email and
 text (sign-in codes are unaffected). Load and check a roster paused; resume
 when the school says go. The one-parent test send (`--only`) still works while

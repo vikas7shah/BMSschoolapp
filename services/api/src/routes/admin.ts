@@ -1,15 +1,15 @@
 import { Hono } from 'hono';
 import {
   createClassroomSchema, dateRange, generateSlotsSchema, importRosterSchema, inviteParentSchema,
-  todayIn,
+  monthOf, todayIn,
   type Child, type ImportResult,
 } from '@bms/shared';
 import {
   childIdsForGuardian, childrenForGuardian, createChild, createClassroom, createUser, deleteChild,
   deleteUser, getUserByEmail, guardianIdsForChild,
   getClassroom, getSchool, getUserByPhone, linkGuardian, listAllGuardianships, listChildren,
-  listClassrooms, listSlotsBySchool, listUsers, publishRange, releaseSlot, setRemindersPaused,
-  unlinkGuardian, updateUser,
+  coverageByMonth, endOfNextMonth, invokeReminders, listClassrooms, listSlotsBySchool, listUsers,
+  markNudged, publishRange, releaseSlot, setRemindersPaused, unbookedParents, unlinkGuardian, updateUser,
 } from '@bms/backend';
 import { createCognitoUser, deleteCognitoUser } from '../cognito.js';
 import type { Vars } from '../app.js';
@@ -415,16 +415,20 @@ route.post('/api/admin/slots/generate', async (c) => {
   return c.json(await publishRange(classroom, from, to));
 });
 
-/** Coverage view: which upcoming days still have nobody on them. */
+/**
+ * Coverage view: this month and next, per classroom — which days still have
+ * nobody on them, and which families have not booked. The same horizon feeds
+ * the admin Home dashboard and the Overview tab.
+ */
 route.get('/api/admin/overview', async (c) => {
   const admin = c.get('user');
   const school = await getSchool(admin.schoolId);
-  const today = todayIn(school?.timezone ?? 'America/Los_Angeles');
-  const from = c.req.query('from') ?? today;
-  const to = c.req.query('to') ?? dateRange(today, today).at(0)!;
+  const today = todayIn(school?.timezone ?? 'America/New_York');
+  const to = endOfNextMonth(today);
+  const months = [monthOf(today), monthOf(to)];
 
   const [slots, classrooms, users, links, children] = await Promise.all([
-    listSlotsBySchool(admin.schoolId, from, c.req.query('to') ?? addDaysSafe(today, 42)),
+    listSlotsBySchool(admin.schoolId, today, to),
     listClassrooms(admin.schoolId),
     listUsers(admin.schoolId),
     listAllGuardianships(),
@@ -447,33 +451,36 @@ route.get('/api/admin/overview', async (c) => {
     childrenOf.set(l.userId, [...(childrenOf.get(l.userId) ?? []), kid.firstName]);
   }
 
+  const byClassroom = await Promise.all(classrooms.map(async (cl) => {
+    const own = slots.filter((s) => s.classroomId === cl.classroomId);
+    const kids = new Set(children.filter((k) => k.classroomId === cl.classroomId).map((k) => k.childId));
+    return {
+      classroomId: cl.classroomId,
+      name: cl.name,
+      slots: own.length,
+      filled: own.filter((s) => s.status === 'CLAIMED').length,
+      open: own.filter((s) => s.status === 'OPEN').length,
+      months: coverageByMonth(own, months),
+      families: new Set(links.filter((l) => kids.has(l.childId)).map((l) => l.userId)).size,
+      unbookedFamilies: (await unbookedParents(admin.schoolId, cl, today)).length,
+      nudgedToday: cl.nudgedOn === today,
+    };
+  }));
+
   return c.json({
     today,
-    range: { from, to: c.req.query('to') ?? addDaysSafe(today, 42) },
+    range: { from: today, to },
+    months,
     classrooms: classrooms.map((cl) => ({ classroomId: cl.classroomId, name: cl.name })),
     totals: {
       slots: slots.length,
       filled: slots.filter((s) => s.status === 'CLAIMED').length,
       open: slots.filter((s) => s.status === 'OPEN').length,
     },
-    // Per-classroom, so the admin view can be narrowed to one room without a
-    // second request.
-    byClassroom: classrooms.map((cl) => {
-      const own = slots.filter((s) => s.classroomId === cl.classroomId);
-      return {
-        classroomId: cl.classroomId,
-        name: cl.name,
-        slots: own.length,
-        filled: own.filter((s) => s.status === 'CLAIMED').length,
-        open: own.filter((s) => s.status === 'OPEN').length,
-      };
-    }),
+    byClassroom,
     openSlots: slots
       .filter((s) => s.status === 'OPEN')
       .sort((a, b) => a.date.localeCompare(b.date))
-      // Six weeks across several classrooms is a few hundred days; the client
-      // groups and trims for display.
-      .slice(0, 400)
       .map((s) => ({ date: s.date, classroomId: s.classroomId })),
     childrenWithNothingBooked: dedupeByChild(
       parents
@@ -484,6 +491,32 @@ route.get('/api/admin/overview', async (c) => {
         }))),
     ),
   });
+});
+
+/**
+ * "Remind now": the open-days nudge to every family in the room with nothing
+ * booked, sent through the reminder job so the wording and channels are the
+ * ones parents already know. Bypasses the pause and the weekly dedupe — the
+ * office is asking for it — and is limited to once a day per classroom.
+ */
+route.post('/api/admin/classrooms/:classroomId/nudge', async (c) => {
+  const admin = c.get('user');
+  const classroom = await getClassroom(c.req.param('classroomId'));
+  if (!classroom || classroom.schoolId !== admin.schoolId) return c.json({ error: 'Unknown classroom' }, 404);
+
+  const school = await getSchool(admin.schoolId);
+  const today = todayIn(school?.timezone ?? 'America/New_York');
+  if (classroom.nudgedOn === today) {
+    return c.json({ error: `${classroom.name} was already reminded today. Try again tomorrow.` }, 409);
+  }
+
+  const families = await unbookedParents(admin.schoolId, classroom, today);
+  if (!families.length) return c.json({ sent: 0, families: 0 });
+
+  const r = await invokeReminders({ force: true, skipDedupe: true, onlyUserIds: families.map((u) => u.userId) });
+  await markNudged(classroom.classroomId, today);
+  console.log(`Remind-now for ${classroom.name} by ${admin.userId}: ${r.sent} sent to ${families.length} families`);
+  return c.json({ sent: r.sent, families: families.length });
 });
 
 /** A child with two guardians appears once, not twice. */

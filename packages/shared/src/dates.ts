@@ -33,6 +33,14 @@ export function hourIn(timezone: string, now: Date = new Date()): number {
 }
 
 /** Add days to a civil date without ever touching local time. */
+/** "2026-09" for any date in September 2026. */
+export const monthOf = (date: CivilDate): string => date.slice(0, 7);
+
+/** "September 2026". */
+export const monthLabel = (month: string): string =>
+  new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+    .format(new Date(`${month}-01T00:00:00Z`));
+
 export function addDays(date: CivilDate, days: number): CivilDate {
   const ms = Date.parse(`${date}T00:00:00Z`) + days * 86_400_000;
   return new Date(ms).toISOString().slice(0, 10);

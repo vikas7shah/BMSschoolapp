@@ -2,12 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { formatLong, formatShort, relativeLabel } from '@bms/shared';
+import { formatLong, formatShort, monthOf, relativeLabel } from '@bms/shared';
 import { api, type Notification, type Slot } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallCard } from '@/components/install-card';
-import { Button, Card, EmptyState, Skeleton } from '@/components/ui';
+import { Banner, Button, Card, EmptyState, Skeleton } from '@/components/ui';
+import { Coverage } from '@/components/coverage';
+import type { OverviewData } from '@/components/admin-overview';
 
 interface MineResponse { today: string; slots: Slot[] }
 
@@ -17,6 +19,13 @@ export default function HomePage() {
   const [openCount, setOpenCount] = useState<number | null>(null);
   const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [overview, setOverview] = useState<OverviewData | null>(null);
+  const [flash, setFlash] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const isAdmin = me?.role === 'ADMIN';
+  // An admin's Home is the school, not a family: the parent cards only appear
+  // if this admin also has children on the roster.
+  const isParent = !isAdmin || (me?.children.length ?? 0) > 0;
 
   const load = useCallback(async () => {
     const [m, board, notes] = await Promise.all([
@@ -25,10 +34,18 @@ export default function HomePage() {
       api.get<{ unread: number; notifications: Notification[] }>('/api/notifications'),
     ]);
     setMine(m);
-    setOpenCount(board.slots.filter((s) => s.status === 'OPEN').length);
+    // Just this month: a whole year of open days is not a number a parent can act on.
+    const month = monthOf(m.today ?? new Date().toISOString().slice(0, 10));
+    setOpenCount(board.slots.filter((s) => s.status === 'OPEN' && monthOf(s.date) === month).length);
     setUnread(notes.unread);
     setLoading(false);
   }, []);
+
+  const loadOverview = useCallback(async () => {
+    setOverview(await api.get<OverviewData>('/api/admin/overview'));
+  }, []);
+
+  useEffect(() => { if (isAdmin) void loadOverview().catch(() => undefined); }, [isAdmin, loadOverview]);
 
   useEffect(() => { void load().catch(() => setLoading(false)); }, [load]);
 
@@ -41,7 +58,20 @@ export default function HomePage() {
         <h1 className="text-2xl font-bold tracking-tight">{me?.firstName}</h1>
       </header>
 
-      {loading ? (
+      {isAdmin && (
+        <section aria-labelledby="coverage-heading" className="mb-6">
+          <p id="coverage-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
+            Snack day coverage
+          </p>
+          {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
+          {flash && <div className="mb-3"><Banner tone="success">{flash}</Banner></div>}
+          {overview
+            ? <Coverage overview={overview} onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
+            : <Skeleton className="h-40" />}
+        </section>
+      )}
+
+      {!isParent ? null : loading ? (
         <Skeleton className="h-40" />
       ) : next ? (
         <section aria-labelledby="days-heading">
@@ -101,13 +131,13 @@ export default function HomePage() {
 
       <div className="mt-4"><InstallCard dismissible /></div>
 
-      {openCount !== null && openCount > 0 && (
+      {isParent && openCount !== null && openCount > 0 && (
         <Card className="mt-4 flex items-center justify-between gap-4">
           <div>
             <p className="font-semibold text-ink">
               {openCount} {openCount === 1 ? 'day needs' : 'days need'} a family
             </p>
-            <p className="mt-0.5 text-sm text-muted">In the next few weeks.</p>
+            <p className="mt-0.5 text-sm text-muted">This month, in your classroom.</p>
           </div>
           <Link href="/snacks/"><Button size="sm" variant="secondary">View</Button></Link>
         </Card>

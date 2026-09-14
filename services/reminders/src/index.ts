@@ -12,8 +12,10 @@ interface InvokeEvent {
   force?: boolean;
   /** Log what would be sent without sending anything. */
   dryRun?: boolean;
-  /** Send only to these users — for a test send to one parent. */
+  /** Send only to these users — a test send, or the office's "remind now". */
   onlyUserIds?: string[];
+  /** Send even if the same message went out this week — for "remind now". */
+  skipDedupe?: boolean;
 }
 
 export const handler = async (event: InvokeEvent = {}) => {
@@ -101,7 +103,7 @@ export const handler = async (event: InvokeEvent = {}) => {
     const results = await Promise.allSettled(batch.map(async (p) => {
       const user = userById.get(p.userId);
       if (!user) return null;
-      return deliver(user, p.message);
+      return deliver(user, p.message, { force: !!event.skipDedupe });
     }));
     for (const r of results) {
       if (r.status === 'rejected') {

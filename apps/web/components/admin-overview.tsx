@@ -3,13 +3,19 @@
 import { useState } from 'react';
 import { formatShort, relativeLabel } from '@bms/shared';
 import { Card } from './ui';
+import { Coverage } from './coverage';
 
 export interface OverviewData {
   today: string;
   classrooms: { classroomId: string; name: string }[];
   totals: { slots: number; filled: number; open: number };
+  months: string[];
   byClassroom: {
     classroomId: string; name: string; slots: number; filled: number; open: number;
+    months: { month: string; slots: number; filled: number; open: number }[];
+    families: number;
+    unbookedFamilies: number;
+    nudgedToday: boolean;
   }[];
   openSlots: { date: string; classroomId: string }[];
   childrenWithNothingBooked: { childName: string; classroomId?: string }[];
@@ -19,20 +25,18 @@ interface Props {
   overview: OverviewData;
   room: string | null;
   onRoom: (room: string) => void;
+  onChanged: (msg: string) => void;
+  onError: (msg: string) => void;
 }
 
 /** Long lists start trimmed; a school term is a lot of rows on a phone. */
 const PREVIEW_ROWS = 10;
 
-export function AdminOverview({ overview, room, onRoom }: Props) {
+export function AdminOverview({ overview, room, onRoom, onChanged, onError }: Props) {
   const [showAllDays, setShowAllDays] = useState(false);
 
   // The tab always shows exactly one classroom; default to the first.
   const active = room ?? overview.classrooms[0]?.classroomId ?? null;
-
-  const totals = overview.byClassroom.find((b) => b.classroomId === active)
-    ?? { slots: 0, filled: 0, open: 0 };
-  const coverage = totals.slots ? Math.round((totals.filled / totals.slots) * 100) : 0;
 
   const openDays = overview.openSlots.filter((s) => s.classroomId === active);
   const unassigned = overview.childrenWithNothingBooked.filter((c) => c.classroomId === active);
@@ -61,27 +65,7 @@ export function AdminOverview({ overview, room, onRoom }: Props) {
         ))}
       </select>
 
-      <Card>
-        <div className="flex items-baseline justify-between">
-          <h2 className="font-semibold text-ink">Next 6 weeks</h2>
-          <span className="text-sm text-muted">{totals.slots} days</span>
-        </div>
-        <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-line">
-          <div
-            className="h-full rounded-full bg-sage transition-all"
-            style={{ width: `${coverage}%` }}
-            role="img"
-            aria-label={`${coverage} percent of snack days filled`}
-          />
-        </div>
-        <div className="mt-3 flex justify-between text-sm">
-          <span className="font-semibold text-sage-dark">{totals.filled} filled</span>
-          <span className="text-clay">{totals.open} still open</span>
-        </div>
-        <p className="mt-3 text-xs text-muted">
-          One family per day, bringing both a dry snack and fruit.
-        </p>
-      </Card>
+      <Coverage overview={overview} classroomId={active} onChanged={onChanged} onError={onError} />
 
       <Card>
         <div className="flex items-baseline justify-between gap-3">

@@ -23,8 +23,4 @@ export function monthWeeks(month: string): CivilDate[][] {
   return weeks;
 }
 
-export const monthOf = (date: CivilDate) => date.slice(0, 7);
-
-export const monthLabel = (month: string) =>
-  new Intl.DateTimeFormat('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' })
-    .format(new Date(`${month}-01T00:00:00Z`));
+export { monthOf, monthLabel } from '@bms/shared';
