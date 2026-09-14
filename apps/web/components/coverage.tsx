@@ -12,6 +12,8 @@ interface Props {
   overview: OverviewData;
   /** Show one classroom only; omit for all of them. */
   classroomId?: string | null;
+  /** Side by side where the screen allows, instead of stacked. */
+  row?: boolean;
   onChanged: (msg: string) => void;
   onError: (msg: string) => void;
 }
@@ -21,13 +23,15 @@ interface Props {
  * families have nothing booked, and a button to remind exactly those families
  * now. The same card sits on the admin Home and at the top of Overview.
  */
-export function Coverage({ overview, classroomId, onChanged, onError }: Props) {
+export function Coverage({ overview, classroomId, row, onChanged, onError }: Props) {
   const rooms = overview.byClassroom.filter((r) => !classroomId || r.classroomId === classroomId);
   if (!rooms.length) return null;
   return (
-    <div className="space-y-4">
+    <div className={row ? 'flex flex-wrap items-start gap-4' : 'space-y-4'}>
       {rooms.map((room) => (
-        <RoomCard key={room.classroomId} room={room} onChanged={onChanged} onError={onError} />
+        <div key={room.classroomId} className={row ? 'min-w-0 flex-[1_1_260px]' : ''}>
+          <RoomCard room={room} onChanged={onChanged} onError={onError} />
+        </div>
       ))}
     </div>
   );

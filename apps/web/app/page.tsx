@@ -75,8 +75,11 @@ export default function HomePage() {
   const tagFor = (group: string) =>
     [...myClassrooms.entries()].find(([n]) => groupMatches(group, n))?.[1];
 
-  // Home is a dashboard: columns sit side by side where the screen allows and
-  // fold underneath each other on a phone, in the same order.
+  // Home is a dashboard in rows: coverage (admins), then the family's snack
+  // days across the full width, then the newsletter beside the calendar.
+  // Within a row, cards sit side by side where the screen allows and fold
+  // underneath each other on a phone.
+  const row = 'flex flex-wrap items-start gap-4';
   const col = 'min-w-0 flex-[1_1_300px]';
 
   return (
@@ -89,20 +92,20 @@ export default function HomePage() {
       {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
       {flash && <div className="mb-3"><Banner tone="success">{flash}</Banner></div>}
 
-      <div className="flex flex-wrap items-start gap-4">
+      <div className="space-y-6">
         {isAdmin && (
-          <section aria-labelledby="coverage-heading" className={col}>
+          <section aria-labelledby="coverage-heading">
             <p id="coverage-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
               Snack day coverage
             </p>
             {overview
-              ? <Coverage overview={overview} onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
+              ? <Coverage overview={overview} row onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
               : <Skeleton className="h-40" />}
           </section>
         )}
 
         {isParent && (
-          <section aria-labelledby="days-heading" className={col}>
+          <section aria-labelledby="days-heading">
             <p id="days-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
               Your snack days
             </p>
@@ -110,7 +113,7 @@ export default function HomePage() {
               <Skeleton className="h-40" />
             ) : next ? (
               <>
-                <ul className="space-y-3">
+                <ul className={row}>
                   {/* Every booked day this month and next, each naming the child. */}
                   {soon.map((slot, i) => {
                     const soonest = i === 0;
@@ -122,9 +125,9 @@ export default function HomePage() {
                     return (
                       <li
                         key={`${slot.classroomId}-${slot.date}`}
-                        className={soonest
+                        className={`${col} ${soonest
                           ? 'rounded-2xl bg-sage p-5 text-white shadow-sm'
-                          : 'rounded-2xl border border-line bg-surface p-4'}
+                          : 'rounded-2xl border border-line bg-surface p-4'}`}
                       >
                         <p className={`text-xl font-bold ${soonest ? '' : 'text-ink'}`}>
                           {who ? `${who}` : 'Snacks'}
@@ -166,6 +169,7 @@ export default function HomePage() {
           </section>
         )}
 
+        <div className={row}>
         {latest && (
           <section aria-labelledby="month-heading" className={col}>
             <p id="month-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
@@ -216,6 +220,7 @@ export default function HomePage() {
             <InstallCard dismissible />
           </div>
         </section>
+        </div>
       </div>
     </Shell>
   );
