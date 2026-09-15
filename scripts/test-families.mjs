@@ -130,6 +130,30 @@ if (open) {
   if (again.summary.created !== 1) { console.error(`Re-seed of family 1 failed: ${JSON.stringify(again.summary)}`); process.exit(1); }
 }
 
+// A test family must be able to sign in by email — the code must go out by
+// email (read back from the sign-in function's log), and verify must succeed.
+{
+  const { CloudWatchLogsClient, FilterLogEventsCommand } = await import('@aws-sdk/client-cloudwatch-logs');
+  const logs = new CloudWatchLogsClient({ region: REGION });
+  const since = Date.now() - 2000;
+  const start = await fetch(`${base}/api/auth/start`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identifier: FAMILIES[0].email }) });
+  const startBody = await start.json();
+  if (!start.ok) { console.error(`Sign-in start for ${FAMILIES[0].email} failed: ${startBody.error}`); process.exit(1); }
+  let code = null;
+  for (let t = 0; t < 12 && !code; t++) {
+    await new Promise((r) => setTimeout(r, 5000));
+    const r = await logs.send(new FilterLogEventsCommand({ logGroupName: outputs.CreateAuthChallengeLogGroup, filterPattern: '"Sign-in code issued for"', startTime: since }));
+    const ev = (r.events ?? []).map((e) => e.message ?? '').find((m) => /via EMAIL/.test(m));
+    const bad = (r.events ?? []).map((e) => e.message ?? '').find((m) => /via SMS/.test(m));
+    if (bad) { console.error(`Sign-in code for an email-only family went by SMS: ${bad.trim()}`); process.exit(1); }
+    code = ev ? /: (\d{6})\s*$/.exec(ev)?.[1] : null;
+  }
+  if (!code) { console.error('No email sign-in code was issued within a minute'); process.exit(1); }
+  const verify = await fetch(`${base}/api/auth/verify`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ identifier: FAMILIES[0].email, code, session: startBody.session }) });
+  if (!verify.ok) { console.error(`Verify failed: ${(await verify.json()).error}`); process.exit(1); }
+  console.log(`${FAMILIES[0].firstName} can sign in by email. ✓`);
+}
+
 // The September newsletter is the first entry; publishing it is idempotent
 // and proves the admin editor's endpoint and the parents' read path.
 {

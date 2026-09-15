@@ -65,7 +65,7 @@ async function readLoginChannel(username: string): Promise<LoginChannel | null> 
   if (!LOGIN_CHANNEL_TABLE) return null;
   try {
     const r = await ddb.send(new GetCommand({
-      TableName: LOGIN_CHANNEL_TABLE, Key: { username },
+      TableName: LOGIN_CHANNEL_TABLE, Key: { username: username.toLowerCase() },
     }));
     return (r.Item as LoginChannel) ?? null;
   } catch (err) {

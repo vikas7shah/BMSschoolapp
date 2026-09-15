@@ -611,15 +611,18 @@ export interface LoginChannel {
  * Short-lived: it only has to survive the round trip into Cognito's
  * CreateAuthChallenge trigger.
  */
+// Cognito hands the trigger a lowercased username (the pool is case-insensitive),
+// so the note is keyed lowercase on both sides — a ULID-keyed account would
+// otherwise miss it and fall back to SMS.
 export async function putLoginChannel(username: string, hint: LoginChannel): Promise<void> {
   await ddb.send(new PutCommand({
     TableName: T.loginChannels,
-    Item: { username, ...hint, createdAt: nowIso(), ttl: Math.floor(Date.now() / 1000) + 900 },
+    Item: { username: username.toLowerCase(), ...hint, createdAt: nowIso(), ttl: Math.floor(Date.now() / 1000) + 900 },
   }));
 }
 
 export async function getLoginChannel(username: string): Promise<LoginChannel | null> {
-  const r = await ddb.send(new GetCommand({ TableName: T.loginChannels, Key: { username } }));
+  const r = await ddb.send(new GetCommand({ TableName: T.loginChannels, Key: { username: username.toLowerCase() } }));
   if (!r.Item) return null;
   return { channel: r.Item.channel, to: r.Item.to, name: r.Item.name } as LoginChannel;
 }
