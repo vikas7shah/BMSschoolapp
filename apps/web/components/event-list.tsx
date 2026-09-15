@@ -14,7 +14,8 @@ export function EventList({ events, today }: { events: SchoolEvent[]; today: str
   return (
     <ul className="divide-y divide-line">
       {events.map((e) => (
-        <li key={`${e.date}-${e.title}`} className="flex gap-3 py-2.5">
+        // Past events stay in the list, dimmed, so the month reads whole.
+        <li key={`${e.date}-${e.title}`} className={`flex gap-3 py-2.5 ${(e.endDate ?? e.date) < today ? 'opacity-50' : ''}`}>
           <span
             className={`w-16 shrink-0 text-sm font-semibold tabular-nums
               ${eventDates(e).includes(today) ? 'text-clay' : 'text-muted'}`}

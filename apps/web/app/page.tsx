@@ -61,11 +61,12 @@ export default function HomePage() {
   const later = (mine?.slots.length ?? 0) - soon.length;
   const next = soon[0];
 
-  // This month's events from today on; when the month is spent, next month's.
-  const eventsIn = (month: string) => SCHOOL_EVENTS.filter(
-    (e) => monthOf(e.date) === month && (e.endDate ?? e.date) >= today,
-  );
-  const eventMonth = eventsIn(monthOf(today)).length ? monthOf(today) : nextMonth;
+  // Everything on Home is one month, named once at the top. The calendar card
+  // is that month's events, past ones included (dimmed); only when a month
+  // has none at all does it show the next month's, and says so.
+  const thisMonth = monthOf(today);
+  const eventsIn = (month: string) => SCHOOL_EVENTS.filter((e) => monthOf(e.date) === month);
+  const eventMonth = eventsIn(thisMonth).length ? thisMonth : nextMonth;
   const events = eventsIn(eventMonth);
 
   const myClassrooms = myClassroomsOf(me);
@@ -86,8 +87,10 @@ export default function HomePage() {
   return (
     <Shell wide>
       <header className="mb-6">
-        <p className="text-sm text-muted">{greeting()}</p>
-        <h1 className="font-serif text-[26px] font-semibold tracking-tight">{me?.firstName}</h1>
+        <p className="text-sm text-muted">{greeting()}, {me?.firstName}</p>
+        <h1 className="font-serif text-[26px] font-semibold tracking-tight">
+          {monthLabel(thisMonth).replace(/ \d{4}$/, '')} at BMS
+        </h1>
       </header>
 
       {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
@@ -108,7 +111,7 @@ export default function HomePage() {
         {isParent && (
           <section aria-labelledby="days-heading">
             <p id="days-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              Your snack days
+              Snack days
             </p>
             {loading ? (
               <Skeleton className="h-40" />
@@ -174,7 +177,7 @@ export default function HomePage() {
         {latest && (
           <section aria-labelledby="month-heading" className={col}>
             <p id="month-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-              This month
+              Newsletter
             </p>
             <div className="space-y-3">
               <NewsletterDeck newsletter={latest} />
@@ -187,13 +190,15 @@ export default function HomePage() {
 
         <section aria-labelledby="up-heading" className={col}>
           <p id="up-heading" className="mb-3 px-1 text-xs font-semibold uppercase tracking-wide text-muted">
-            Coming up
+            Calendar
           </p>
           <div className="space-y-3">
             {events.length > 0 && (
               <Card>
                 <div className="flex items-baseline justify-between gap-3">
-                  <h2 className="font-semibold text-ink">{monthLabel(eventMonth).replace(/ \d{4}$/, '')} at school</h2>
+                  <h2 className="font-semibold text-ink">
+                    {eventMonth === thisMonth ? 'At school' : `${monthLabel(eventMonth).replace(/ \d{4}$/, '')} at school`}
+                  </h2>
                   <Link href="/calendar/" className="text-xs text-muted underline underline-offset-2">Full calendar</Link>
                 </div>
                 <div className="mt-2"><EventList events={events} today={today} /></div>

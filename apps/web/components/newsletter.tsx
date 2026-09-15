@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-  CURRICULUM_SUBJECTS, monthLabel, type CurriculumGroup, type Newsletter,
+  CURRICULUM_SUBJECTS, type CurriculumGroup, type Newsletter,
 } from '@bms/shared';
 import { Card } from './ui';
 
@@ -39,11 +39,7 @@ export function CurriculumCard({ group, month, tag, lifted, link }: {
           </Link>
         )}
       </div>
-      {group.teachers && (
-        <p className="mt-0.5 text-xs text-muted">
-          {group.teachers} · {monthLabel(month).replace(/ \d{4}$/, '')}
-        </p>
-      )}
+      {group.teachers && <p className="mt-0.5 text-xs text-muted">{group.teachers}</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         {CURRICULUM_SUBJECTS.map(([key, label]) => {
           const value = group.subjects[key];
@@ -103,7 +99,7 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
 
       {newsletter.curriculum.length > 0 && (
         <>
-          <p className="mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-muted">Monthly curriculum</p>
+          <p className="mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-muted">Curriculum</p>
           {newsletter.curriculumIntro && (
             <p className="px-1 text-sm text-muted">{newsletter.curriculumIntro}</p>
           )}

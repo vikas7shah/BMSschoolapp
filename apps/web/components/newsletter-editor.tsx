@@ -135,7 +135,7 @@ export function NewsletterEditor({ onChanged, onError }: {
       </Button>
 
       <Card>
-        <h2 className="font-semibold text-ink">Monthly curriculum</h2>
+        <h2 className="font-semibold text-ink">Curriculum</h2>
         <div className="mt-3">
           <Field label="Note" hint="Optional — one line shown above the tables.">
             <input className={inputClass} value={intro} onChange={(e) => setIntro(e.target.value)} />
