@@ -363,9 +363,14 @@ The school's monthly letter under the **News** tab, as short present-tense
 points under headings — every point the letter made, none of the prose — with
 the sender's name and address at the top and the curriculum as one card per
 group, the reader's own classrooms lifted to the top. On Home the latest letter is a
-slide deck — one section at a time, eight seconds each, tap to advance, hold
-to pause, dots to jump — the same height as the cards around it, with the
-family's classrooms' curriculum underneath. One
+deck — one point at a time in Fraunces on a dark panel, five seconds each with
+a timer bar, tap to advance, hold to pause, a dot per section — the same
+height as the cards around it, with the family's classrooms' curriculum
+underneath. A "Questions" section stays off the deck.
+
+**Type.** Two faces with clear jobs: Fraunces (self-hosted through next/font)
+where the school speaks — page titles, newsletter headings, the deck — and
+the system sans for everything you operate. One
 item per month in the Newsletters table.
 
 Getting a month in: **Admin → Newsletter** — a heading and one point per line

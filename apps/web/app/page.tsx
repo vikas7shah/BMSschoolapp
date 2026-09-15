@@ -87,7 +87,7 @@ export default function HomePage() {
     <Shell wide>
       <header className="mb-6">
         <p className="text-sm text-muted">{greeting()}</p>
-        <h1 className="text-2xl font-bold tracking-tight">{me?.firstName}</h1>
+        <h1 className="font-serif text-[26px] font-semibold tracking-tight">{me?.firstName}</h1>
       </header>
 
       {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}

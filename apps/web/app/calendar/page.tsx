@@ -34,7 +34,7 @@ export default function CalendarPage() {
       <TopBar />
       <main className={`mx-auto w-full max-w-lg px-5 pb-28 ${me ? 'pt-4' : 'pt-8'}`}>
       <header className="mb-6">
-        <h1 className="text-2xl font-bold tracking-tight text-ink">School calendar</h1>
+        <h1 className="font-serif text-[26px] font-semibold tracking-tight text-ink">School calendar</h1>
         <p className="mt-1 text-sm text-muted">
           {SCHOOL_YEAR.label} · {formatShort(SCHOOL_YEAR.start)} to {formatShort(SCHOOL_YEAR.end)}
         </p>

@@ -92,7 +92,7 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
 
       {newsletter.sections.map((s) => (
         <Card key={s.heading}>
-          <h3 className="font-semibold text-ink">{s.heading}</h3>
+          <h3 className="font-serif text-[19px] font-semibold text-ink">{s.heading}</h3>
           <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-ink">
             {s.points.map((b, i) => (
               <li key={i} className="flex gap-2"><span aria-hidden className="text-sage">•</span><span>{b}</span></li>
