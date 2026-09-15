@@ -181,6 +181,9 @@ export default function HomePage() {
             </p>
             <div className="space-y-3">
               <NewsletterDeck newsletter={latest} />
+              {myCurriculum.length > 0 && (
+                <p className="px-1 pt-2 text-xs font-semibold uppercase tracking-wide text-muted">Curriculum</p>
+              )}
               {myCurriculum.map((g) => (
                 <CurriculumCard key={g.group} group={g} month={latest.month} tag={tagFor(g.group)} />
               ))}
