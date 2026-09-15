@@ -13,6 +13,7 @@ import { Banner, Button, Card, EmptyState, Skeleton } from '@/components/ui';
 import { Coverage } from '@/components/coverage';
 import { EventList } from '@/components/event-list';
 import { CurriculumCard, groupMatches, myClassroomsOf } from '@/components/newsletter';
+import { NewsletterDeck } from '@/components/newsletter-deck';
 
 
 interface MineResponse { today: string; slots: Slot[] }
@@ -176,20 +177,9 @@ export default function HomePage() {
               This month
             </p>
             <div className="space-y-3">
-              <Card className="border-transparent bg-sage-soft">
-                <h2 className="font-semibold text-sage-dark">
-                  {monthLabel(latest.month).replace(/ \d{4}$/, '')} newsletter
-                </h2>
-                <p className="mt-1 text-sm text-ink">
-                  From {latest.from.replace(/,.*$/, '')} · {latest.sections.map((x) => x.heading).slice(0, 4).join(', ')}
-                  {latest.sections.length > 4 ? '…' : ''}
-                </p>
-                <Link href={`/news/?month=${latest.month}`} className="mt-3 inline-block">
-                  <Button size="sm">Read it</Button>
-                </Link>
-              </Card>
+              <NewsletterDeck newsletter={latest} />
               {myCurriculum.map((g) => (
-                <CurriculumCard key={g.group} group={g} month={latest.month} tag={tagFor(g.group)} link />
+                <CurriculumCard key={g.group} group={g} month={latest.month} tag={tagFor(g.group)} />
               ))}
             </div>
           </section>
