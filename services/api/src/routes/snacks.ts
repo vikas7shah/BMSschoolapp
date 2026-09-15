@@ -55,9 +55,10 @@ route.get('/api/snacks', async (c) => {
   const tz = school?.timezone ?? 'America/Los_Angeles';
   const today = todayIn(tz);
 
-  // The whole school year by default: the calendar pages through every month
-  // of it, and a day outside the year is drawn as such, not as "no data".
-  const from = c.req.query('from') ?? today;
+  // The whole school year by default, past days included: the calendar pages
+  // through every month of it, and who brought snacks on day one is still
+  // there to see. A day outside the year is drawn as such, not as "no data".
+  const from = c.req.query('from') ?? (SCHOOL_YEAR.start < today ? SCHOOL_YEAR.start : today);
   const to = c.req.query('to') ?? (SCHOOL_YEAR.end > today ? SCHOOL_YEAR.end : addDays(today, 42));
 
   const allowed = await visibleClassroomIds(user);

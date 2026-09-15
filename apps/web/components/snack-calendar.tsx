@@ -216,8 +216,8 @@ function DayDetail({
             {!slot ? (closureReason(date) ?? outOfYear(date) ?? 'Not a snack day')
               : slot.status === 'CLAIMED'
                 ? slot.isMine
-                  ? `You're bringing snacks${slot.claimedForChildName ? ` for ${slot.claimedForChildName}` : ''}`
-                  : `${slot.claimedForChildName ?? slot.claimedByName}'s family is bringing snacks`
+                  ? `You ${past ? 'brought' : "'re bringing"} snacks${slot.claimedForChildName ? ` for ${slot.claimedForChildName}` : ''}`.replace('You \'re', "You're")
+                  : `${slot.claimedForChildName ?? slot.claimedByName}'s family ${past ? 'brought' : 'is bringing'} snacks`
                 : past ? 'Nobody signed up' : 'Nobody has signed up yet'}
           </p>
         </div>
