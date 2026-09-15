@@ -142,10 +142,10 @@ const paragraph = z.string().trim().min(1).max(4000);
 export const newsletterSchema = z.object({
   sentOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   from: z.string().trim().min(1).max(120),
+  fromEmail: z.string().trim().email().optional().or(z.literal('')),
   sections: z.array(z.object({
     heading: z.string().trim().min(1).max(80),
-    brief: z.array(z.string().trim().min(1).max(200)).max(6).optional(),
-    paragraphs: z.array(paragraph).min(1).max(20),
+    points: z.array(z.string().trim().min(1).max(300)).min(1).max(12),
   })).min(1).max(30),
   curriculumIntro: paragraph.optional().or(z.literal('')),
   curriculum: z.array(z.object({
@@ -160,7 +160,6 @@ export const newsletterSchema = z.object({
       art: z.string().trim().max(300).default(''),
     }),
   })).max(10).default([]),
-  signoff: z.string().trim().max(1000).default(''),
 });
 export type NewsletterInput = z.infer<typeof newsletterSchema>;
 

@@ -29,6 +29,7 @@ route.put('/api/admin/newsletters/:month', async (c) => {
   const n = {
     ...parsed.data,
     curriculumIntro: parsed.data.curriculumIntro || undefined,
+    fromEmail: parsed.data.fromEmail || undefined,
     schoolId: admin.schoolId,
     month,
     updatedAt: new Date().toISOString(),

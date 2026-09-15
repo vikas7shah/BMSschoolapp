@@ -5,7 +5,7 @@ import { CURRICULUM_SUBJECTS, monthLabel, type Newsletter } from '@bms/shared';
 import { ApiError, api } from '@/lib/api';
 import { Button, Card, Field, inputClass } from './ui';
 
-type Section = { heading: string; brief: string; text: string };
+type Section = { heading: string; points: string };
 type Group = { group: string; teachers: string; subjects: Record<string, string> };
 
 const emptySubjects = () => Object.fromEntries(CURRICULUM_SUBJECTS.map(([k]) => [k, '']));
@@ -23,11 +23,11 @@ export function NewsletterEditor({ onChanged, onError }: {
   const thisMonth = new Date().toISOString().slice(0, 7);
   const [month, setMonth] = useState(thisMonth);
   const [sentOn, setSentOn] = useState(new Date().toISOString().slice(0, 10));
-  const [from, setFrom] = useState('Mrs. Sahar, Administrator');
-  const [sections, setSections] = useState<Section[]>([{ heading: '', brief: '', text: '' }]);
+  const [from, setFrom] = useState('Dan Bertini · Director');
+  const [fromEmail, setFromEmail] = useState('dbertini0101@gmail.com');
+  const [sections, setSections] = useState<Section[]>([{ heading: '', points: '' }]);
   const [intro, setIntro] = useState('');
   const [groups, setGroups] = useState<Group[]>(DEFAULT_GROUPS.map((g) => ({ group: g, teachers: '', subjects: emptySubjects() })));
-  const [signoff, setSignoff] = useState('');
   const [busy, setBusy] = useState(false);
   const [existing, setExisting] = useState<string[]>([]);
 
@@ -45,12 +45,12 @@ export function NewsletterEditor({ onChanged, onError }: {
       const { newsletter: n } = await api.get<{ newsletter: Newsletter }>(`/api/newsletters/${m}`);
       setSentOn(n.sentOn);
       setFrom(n.from);
-      setSections(n.sections.map((s) => ({ heading: s.heading, brief: (s.brief ?? []).join('\n'), text: s.paragraphs.join('\n\n') })));
+      setFromEmail(n.fromEmail ?? '');
+      setSections(n.sections.map((s) => ({ heading: s.heading, points: s.points.join('\n') })));
       setIntro(n.curriculumIntro ?? '');
       setGroups(n.curriculum.length
         ? n.curriculum.map((g) => ({ group: g.group, teachers: g.teachers, subjects: { ...emptySubjects(), ...g.subjects } }))
         : DEFAULT_GROUPS.map((g) => ({ group: g, teachers: '', subjects: emptySubjects() })));
-      setSignoff(n.signoff);
     } catch { /* leave the form as it is */ }
   }
 
@@ -59,13 +59,12 @@ export function NewsletterEditor({ onChanged, onError }: {
     setBusy(true);
     try {
       await api.put(`/api/admin/newsletters/${month}`, {
-        sentOn, from, signoff, curriculumIntro: intro,
+        sentOn, from, fromEmail, curriculumIntro: intro,
         sections: sections
-          .filter((s) => s.heading.trim() && s.text.trim())
+          .filter((s) => s.heading.trim() && s.points.trim())
           .map((s) => ({
             heading: s.heading,
-            brief: s.brief.split('\n').map((b) => b.trim()).filter(Boolean),
-            paragraphs: s.text.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean),
+            points: s.points.split('\n').map((b) => b.replace(/^[-•*]\s*/, '').trim()).filter(Boolean),
           })),
         curriculum: groups.filter((g) => g.group.trim() && Object.values(g.subjects).some((v) => v.trim())),
       });
@@ -86,8 +85,8 @@ export function NewsletterEditor({ onChanged, onError }: {
       <Card>
         <h2 className="font-semibold text-ink">Newsletter</h2>
         <p className="mt-1 text-sm text-muted">
-          Paste the school&apos;s letter in, section by section, exactly as written. Saving a month
-          again replaces it.
+          The month&apos;s letter as short points under headings — one point per line, present
+          tense, covering everything the letter said. Saving a month again replaces it.
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Field label="Month" hint={existing.includes(month) ? 'Already published — saving replaces it.' : undefined}>
@@ -97,9 +96,12 @@ export function NewsletterEditor({ onChanged, onError }: {
             <input className={inputClass} type="date" required value={sentOn} onChange={(e) => setSentOn(e.target.value)} />
           </Field>
         </div>
-        <div className="mt-3">
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <Field label="From">
             <input className={inputClass} required value={from} onChange={(e) => setFrom(e.target.value)} />
+          </Field>
+          <Field label="Email" hint="Shown under the name, tappable.">
+            <input className={inputClass} type="email" value={fromEmail} onChange={(e) => setFromEmail(e.target.value)} />
           </Field>
         </div>
       </Card>
@@ -120,27 +122,23 @@ export function NewsletterEditor({ onChanged, onError }: {
               <input className={inputClass} placeholder="Show and Tell" value={s.heading}
                 onChange={(e) => setSection(i, { heading: e.target.value })} />
             </Field>
-            <Field label="Briefly" hint="Optional — three or four short points, one per line, in the present tense. Shown above the text.">
-              <textarea className={`${inputClass} min-h-20`} value={s.brief}
-                onChange={(e) => setSection(i, { brief: e.target.value })} />
-            </Field>
-            <Field label="Text" hint="A blank line starts a new paragraph.">
-              <textarea className={`${inputClass} min-h-32`} value={s.text}
-                onChange={(e) => setSection(i, { text: e.target.value })} />
+            <Field label="Points" hint="One per line.">
+              <textarea className={`${inputClass} min-h-32`} value={s.points}
+                onChange={(e) => setSection(i, { points: e.target.value })} />
             </Field>
           </div>
         </Card>
       ))}
       <Button type="button" variant="secondary" className="w-full"
-        onClick={() => setSections((xs) => [...xs, { heading: '', brief: '', text: '' }])}>
+        onClick={() => setSections((xs) => [...xs, { heading: '', points: '' }])}>
         Add a section
       </Button>
 
       <Card>
         <h2 className="font-semibold text-ink">Monthly curriculum</h2>
         <div className="mt-3">
-          <Field label="Introduction" hint="Optional — the paragraph before the tables.">
-            <textarea className={`${inputClass} min-h-20`} value={intro} onChange={(e) => setIntro(e.target.value)} />
+          <Field label="Note" hint="Optional — one line shown above the tables.">
+            <input className={inputClass} value={intro} onChange={(e) => setIntro(e.target.value)} />
           </Field>
         </div>
       </Card>
@@ -165,11 +163,6 @@ export function NewsletterEditor({ onChanged, onError }: {
         </Card>
       ))}
 
-      <Card>
-        <Field label="Sign-off" hint="Closing lines, as written.">
-          <textarea className={`${inputClass} min-h-20`} value={signoff} onChange={(e) => setSignoff(e.target.value)} />
-        </Field>
-      </Card>
 
       <Button type="submit" loading={busy} className="w-full">
         {existing.includes(month) ? `Replace ${monthLabel(month)}` : `Publish ${monthLabel(month)}`}

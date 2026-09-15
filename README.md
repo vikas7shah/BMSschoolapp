@@ -359,29 +359,25 @@ school.
 
 ## The newsletter
 
-The school's monthly letter, word for word, under the **News** tab — headings
-added so it reads on a phone, the curriculum as one card per group with the
-reader's own classrooms lifted to the top. Home shows the family's own
-classrooms' curriculum ("This month in class") and a card for the latest
-letter. One item per month in the Newsletters table.
+The school's monthly letter under the **News** tab, as short present-tense
+points under headings — every point the letter made, none of the prose — with
+the sender's name and address at the top and the curriculum as one card per
+group, the reader's own classrooms lifted to the top. Home shows the family's
+classrooms' curriculum ("This month") and a card for the latest letter. One
+item per month in the Newsletters table.
 
-Each section can carry a **"briefly"** — three or four present-tense bullets
-shown in a tinted box above the school's paragraphs, which stay word for word.
-The bullets are the app's summary, not the school's words, so the office
-should read them before publishing.
-
-Getting a month in: **Admin → Newsletter** — paste each section under a
-heading (a blank line starts a new paragraph), fill the six curriculum cells
-per group, save. Saving a month again replaces it. Or, from a JSON file:
+Getting a month in: **Admin → Newsletter** — a heading and one point per line
+for each section, the six curriculum cells per group, save. Saving a month
+again replaces it. Or, from a JSON file:
 
 ```bash
 node scripts/newsletter.mjs 2026-09
 ```
 
-`docs/newsletters/2026-09.json` is September, as sent; the smoke test
-publishes it on every deploy. Curriculum groups match classrooms by name
-("Classroom 3" ↔ the classroom called Classroom 3); a group with no
-classroom, like Elementary, shows on the Newsletter page only.
+`docs/newsletters/2026-09.json` is September; the smoke test publishes it on
+every deploy. Curriculum groups match classrooms by name ("Classroom 3" ↔
+the classroom called Classroom 3); a group with no classroom, like
+Elementary, shows on the Newsletter page only.
 
 ## The school calendar
 

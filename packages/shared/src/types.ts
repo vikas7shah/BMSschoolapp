@@ -60,23 +60,21 @@ export interface CurriculumGroup {
 
 export interface NewsletterSection {
   heading: string;
-  /** Three or four present-tense points above the school's own text. */
-  brief?: string[];
-  /** Paragraphs, verbatim from the school. */
-  paragraphs: string[];
+  /** Present-tense points covering everything the school's paragraph said. */
+  points: string[];
 }
 
-/** The school's monthly letter, exactly as written, with headings added for the phone. */
+/** The school's monthly letter, as headed bullet points, plus the curriculum. */
 export interface Newsletter {
   schoolId: string;
   /** "2026-09" */
   month: string;
   sentOn: string;
   from: string;
+  fromEmail?: string;
   sections: NewsletterSection[];
   curriculumIntro?: string;
   curriculum: CurriculumGroup[];
-  signoff: string;
   updatedAt: string;
 }
 

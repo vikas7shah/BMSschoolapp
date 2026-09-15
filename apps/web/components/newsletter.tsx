@@ -84,6 +84,9 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
         </div>
         <p className="text-sm text-muted">
           <span className="font-semibold text-ink">{newsletter.from}</span><br />
+          {newsletter.fromEmail && (
+            <><a href={`mailto:${newsletter.fromEmail}`} className="text-sage-dark underline underline-offset-2">{newsletter.fromEmail}</a> · </>
+          )}
           Sent {formatLong(newsletter.sentOn)}
         </p>
       </div>
@@ -91,17 +94,11 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
       {newsletter.sections.map((s) => (
         <Card key={s.heading}>
           <h3 className="font-semibold text-ink">{s.heading}</h3>
-          {s.brief && s.brief.length > 0 && (
-            // The short version first; the school's own words follow untouched.
-            <ul className="mt-2 space-y-1 rounded-xl bg-sage-soft/60 px-4 py-3 text-sm text-sage-dark">
-              {s.brief.map((b, i) => (
-                <li key={i} className="flex gap-2"><span aria-hidden>•</span><span>{b}</span></li>
-              ))}
-            </ul>
-          )}
-          {s.paragraphs.map((p, i) => (
-            <p key={i} className="mt-2 text-sm leading-relaxed text-ink">{p}</p>
-          ))}
+          <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-ink">
+            {s.points.map((b, i) => (
+              <li key={i} className="flex gap-2"><span aria-hidden className="text-sage">•</span><span>{b}</span></li>
+            ))}
+          </ul>
         </Card>
       ))}
 
@@ -109,7 +106,7 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
         <>
           <p className="mt-6 px-1 text-xs font-semibold uppercase tracking-wide text-muted">Monthly curriculum</p>
           {newsletter.curriculumIntro && (
-            <Card><p className="text-sm leading-relaxed text-ink">{newsletter.curriculumIntro}</p></Card>
+            <p className="px-1 text-sm text-muted">{newsletter.curriculumIntro}</p>
           )}
           {mine.map((g) => <CurriculumCard key={g.group} group={g} month={newsletter.month} tag={tagFor(g)} lifted />)}
           {others.map((g) => (
@@ -126,11 +123,6 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
         </>
       )}
 
-      {newsletter.signoff && (
-        <Card>
-          <p className="whitespace-pre-line text-sm leading-relaxed text-ink">{newsletter.signoff}</p>
-        </Card>
-      )}
     </div>
   );
 }
