@@ -52,6 +52,24 @@ export function Card({ children, className = '' }: { children: ReactNode; classN
   );
 }
 
+/**
+ * A dashboard tile: fills its grid cell exactly, never grows, with a small
+ * label at the top. Everything on Home is one of these.
+ */
+export function Tile({ label, children, tone = 'plain' }: {
+  label: string; children: ReactNode; tone?: 'plain' | 'sage';
+}) {
+  const box = tone === 'sage'
+    ? 'border-transparent bg-sage text-white'
+    : 'border-line bg-surface';
+  return (
+    <div className={`flex h-full min-h-0 flex-col overflow-hidden rounded-2xl border p-5 ${box}`}>
+      <p className={`text-[10.5px] font-bold uppercase tracking-wide ${tone === 'sage' ? 'text-white/70' : 'text-muted'}`}>{label}</p>
+      {children}
+    </div>
+  );
+}
+
 export function PageHeader({ title, subtitle, action }: {
   title: string; subtitle?: string; action?: ReactNode;
 }) {

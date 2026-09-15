@@ -10,12 +10,12 @@ export function dayLabel(event: SchoolEvent): string {
 }
 
 /** One month's school events, as on the Calendar page and the Home dashboard. */
-export function EventList({ events, today }: { events: SchoolEvent[]; today: string }) {
+export function EventList({ events, today, compact }: { events: SchoolEvent[]; today: string; compact?: boolean }) {
   return (
     <ul className="divide-y divide-line">
       {events.map((e) => (
         // Past events stay in the list, dimmed, so the month reads whole.
-        <li key={`${e.date}-${e.title}`} className={`flex gap-3 py-2.5 ${(e.endDate ?? e.date) < today ? 'opacity-50' : ''}`}>
+        <li key={`${e.date}-${e.title}`} className={`flex gap-3 ${compact ? 'py-1.5' : 'py-2.5'} ${(e.endDate ?? e.date) < today ? 'opacity-50' : ''}`}>
           <span
             className={`w-16 shrink-0 text-sm font-semibold tabular-nums
               ${eventDates(e).includes(today) ? 'text-clay' : 'text-muted'}`}
@@ -23,8 +23,8 @@ export function EventList({ events, today }: { events: SchoolEvent[]; today: str
             {dayLabel(e)}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm text-ink">{e.title}</p>
-            {e.time && <p className="text-xs text-muted">{e.time}</p>}
+            <p className="truncate text-sm text-ink">{e.title}{compact && e.time ? <span className="text-muted"> · {e.time}</span> : ''}</p>
+            {!compact && e.time && <p className="text-xs text-muted">{e.time}</p>}
             <div className="mt-1 flex flex-wrap gap-1.5">
               {e.closed && <Tag tone="closed">No school</Tag>}
               {e.vacationCare && <Tag tone="info">Vacation care only</Tag>}

@@ -21,7 +21,7 @@ const iconFor = (heading: string) => ICONS.find(([re]) => re.test(heading))?.[1]
  * Tap to move on, hold to pause, tap a dot to jump. With "reduce motion" on
  * it moves only when tapped.
  */
-export function NewsletterDeck({ newsletter }: { newsletter: Newsletter }) {
+export function NewsletterDeck({ newsletter, tile }: { newsletter: Newsletter; tile?: boolean }) {
   const sections = newsletter.sections.filter((s) => !skip(s.heading));
   const points = sections.flatMap((s, si) => s.points.map((p, k) => ({
     heading: s.heading, icon: iconFor(s.heading), text: p, section: si, k: k + 1, n: s.points.length,
@@ -54,12 +54,13 @@ export function NewsletterDeck({ newsletter }: { newsletter: Newsletter }) {
     <section
       aria-roledescription="carousel"
       aria-label="This month's newsletter"
-      className="relative flex h-[200px] flex-col overflow-hidden rounded-2xl bg-sage-dark p-5 pb-3 text-white"
+      className={`relative flex ${tile ? 'h-full' : 'h-[200px]'} flex-col overflow-hidden rounded-2xl bg-sage-dark p-5 pb-3 text-white`}
       onPointerDown={stop}
       onPointerUp={start}
       onPointerCancel={start}
     >
-      <p className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-white/65">
+      <p className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-wide text-white/65">
+        {tile && <span className="text-white/45">Newsletter ·</span>}
         <span aria-hidden className="text-[15px]">{cur.icon}</span>
         {cur.heading} · {cur.k} of {cur.n}
       </p>
@@ -76,7 +77,7 @@ export function NewsletterDeck({ newsletter }: { newsletter: Newsletter }) {
           <p
             key={`${p.section}-${p.k}`}
             aria-hidden={j !== i}
-            className={`absolute inset-x-0 top-3 font-serif text-[18px] leading-[1.4] [text-wrap:balance]
+            className={`absolute inset-x-0 top-3 font-serif leading-[1.4] [text-wrap:balance] ${tile ? 'line-clamp-6 text-[15px]' : 'line-clamp-5 text-[18px]'}
                         transition-[opacity,transform] duration-500 motion-reduce:transition-none
                         ${j === i ? 'opacity-100 translate-x-0' : 'pointer-events-none opacity-0 translate-x-6'}`}
           >

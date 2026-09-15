@@ -14,16 +14,19 @@ export const groupMatches = (group: string, classroomName: string) =>
  * One classroom's month, six subjects as tiles that flow and wrap — the same
  * card on the Newsletter page and, for the parent's own classrooms, on Home.
  */
-export function CurriculumCard({ group, month, tag, lifted, link }: {
+export function CurriculumCard({ group, month, tag, lifted, link, tile }: {
   group: CurriculumGroup;
   month: string;
   /** e.g. the child's name, when this is their classroom. */
   tag?: string;
   lifted?: boolean;
   link?: boolean;
+  /** Fill a fixed dashboard cell: three tile columns, values clamped to two lines. */
+  tile?: boolean;
 }) {
   return (
-    <Card className={lifted ? 'border-sage ring-[3px] ring-sage-soft' : ''}>
+    <Card className={`${lifted ? 'border-sage ring-[3px] ring-sage-soft' : ''} ${tile ? 'flex h-full min-h-0 flex-col overflow-hidden' : ''}`}>
+      {tile && <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-muted">Curriculum</p>}
       <div className="flex items-baseline justify-between gap-3">
         <h3 className="font-semibold text-ink">
           {group.group}
@@ -39,15 +42,17 @@ export function CurriculumCard({ group, month, tag, lifted, link }: {
           </Link>
         )}
       </div>
-      {group.teachers && <p className="mt-0.5 text-xs text-muted">{group.teachers}</p>}
-      <div className="mt-3 flex flex-wrap gap-2">
+      {group.teachers && <p className={`mt-0.5 text-xs text-muted ${tile ? 'truncate' : ''}`}>{group.teachers}</p>}
+      <div className={tile ? 'mt-2 grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-1.5' : 'mt-3 flex flex-wrap gap-2'}>
         {CURRICULUM_SUBJECTS.map(([key, label]) => {
           const value = group.subjects[key];
           if (!value) return null;
           return (
-            <div key={key} className="min-w-0 flex-[1_1_130px] rounded-xl border border-line bg-cream px-2.5 py-2">
-              <p className="text-[10.5px] font-bold uppercase tracking-wide text-muted">{label}</p>
-              <p className="mt-0.5 whitespace-pre-line text-[13px] leading-snug text-ink">{value}</p>
+            <div key={key} className={`min-w-0 rounded-xl border border-line bg-cream ${tile ? 'min-h-0 overflow-hidden px-2 py-1.5' : 'flex-[1_1_130px] px-2.5 py-2'}`}>
+              <p className="text-[9.5px] font-bold uppercase tracking-wide text-muted">{tile ? label.replace(/ \(.*\)$/, '') : label}</p>
+              <p className={`mt-0.5 leading-snug text-ink ${tile ? 'line-clamp-2 text-[12px]' : 'whitespace-pre-line text-[13px]'}`}>
+                {tile ? value.split('\n')[0] : value}
+              </p>
             </div>
           );
         })}

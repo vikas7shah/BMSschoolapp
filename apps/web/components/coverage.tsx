@@ -14,6 +14,8 @@ interface Props {
   classroomId?: string | null;
   /** Side by side where the screen allows, instead of stacked. */
   row?: boolean;
+  /** One fixed dashboard cell per classroom, no wrapper. */
+  tile?: boolean;
   onChanged: (msg: string) => void;
   onError: (msg: string) => void;
 }
@@ -23,9 +25,12 @@ interface Props {
  * families have nothing booked, and a button to remind exactly those families
  * now. The same card sits on the admin Home and at the top of Overview.
  */
-export function Coverage({ overview, classroomId, row, onChanged, onError }: Props) {
+export function Coverage({ overview, classroomId, row, tile, onChanged, onError }: Props) {
   const rooms = overview.byClassroom.filter((r) => !classroomId || r.classroomId === classroomId);
   if (!rooms.length) return null;
+  if (tile) {
+    return <>{rooms.map((room) => <RoomCard key={room.classroomId} room={room} tile onChanged={onChanged} onError={onError} />)}</>;
+  }
   return (
     <div className={row ? 'flex flex-wrap items-start gap-4' : 'space-y-4'}>
       {rooms.map((room) => (
@@ -37,8 +42,8 @@ export function Coverage({ overview, classroomId, row, onChanged, onError }: Pro
   );
 }
 
-function RoomCard({ room, onChanged, onError }: {
-  room: Room; onChanged: (msg: string) => void; onError: (msg: string) => void;
+function RoomCard({ room, tile, onChanged, onError }: {
+  room: Room; tile?: boolean; onChanged: (msg: string) => void; onError: (msg: string) => void;
 }) {
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,7 +63,8 @@ function RoomCard({ room, onChanged, onError }: {
   }
 
   return (
-    <Card>
+    <Card className={tile ? 'flex h-full min-h-0 flex-col overflow-hidden' : ''}>
+      {tile && <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-muted">Snack day coverage</p>}
       <h2 className="font-semibold text-ink">{room.name}</h2>
 
       <dl className="mt-3 space-y-3">
@@ -86,7 +92,7 @@ function RoomCard({ room, onChanged, onError }: {
         })}
       </dl>
 
-      <div className="mt-4 flex items-center justify-between gap-3">
+      <div className={`flex items-center justify-between gap-3 ${tile ? 'mt-auto pt-3' : 'mt-4'}`}>
         <p className="text-sm text-muted">
           {room.families === 0 ? 'No families in this classroom yet.'
             : n === 0 ? 'Every family has a day booked.'

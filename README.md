@@ -406,9 +406,12 @@ being blank, and tapping it names the holiday.
 
 ## Home is a dashboard
 
-For parents and admins alike, Home is columns that sit side by side where the
-screen is wide enough and fold underneath each other on a phone, in the same
-order: coverage (admins), your snack days, this month in class, coming up.
+One grid, every tile the same box (236px tall, columns to fit the screen —
+three on a laptop, one on a phone), named for the month at the top
+("September at BMS"). Order: snack-day coverage (admins), a tile per booked
+snack day this month and next, the newsletter deck, the calendar, a
+curriculum tile per classroom the family has a child in. A family with three
+children simply uses more tiles; nothing scrolls inside one.
 
 ## A family's days are the family's
 
