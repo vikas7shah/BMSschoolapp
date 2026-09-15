@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import {
-  CURRICULUM_SUBJECTS, formatLong, monthLabel, type CurriculumGroup, type Newsletter,
+  CURRICULUM_SUBJECTS, monthLabel, type CurriculumGroup, type Newsletter,
 } from '@bms/shared';
 import { Card } from './ui';
 
@@ -83,11 +83,10 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
           {initials(newsletter.from)}
         </div>
         <p className="text-sm text-muted">
-          <span className="font-semibold text-ink">{newsletter.from}</span><br />
+          <span className="font-semibold text-ink">{newsletter.from}</span>
           {newsletter.fromEmail && (
-            <><a href={`mailto:${newsletter.fromEmail}`} className="text-sage-dark underline underline-offset-2">{newsletter.fromEmail}</a> · </>
+            <><br /><a href={`mailto:${newsletter.fromEmail}`} className="text-sage-dark underline underline-offset-2">{newsletter.fromEmail}</a></>
           )}
-          Sent {formatLong(newsletter.sentOn)}
         </p>
       </div>
 
