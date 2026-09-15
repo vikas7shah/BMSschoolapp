@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  SCHOOL_EVENTS, formatLong, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
+  SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
 import { api, type Notification, type OverviewData, type Slot } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -101,33 +101,36 @@ export default function HomePage() {
 
         {isParent && (loading ? (
           <Skeleton className="h-full" />
-        ) : soon.length ? soon.map((slot, i) => {
-          const soonest = i === 0;
-          const rel = relativeLabel(slot.date, mine!.today);
-          const showRel = rel !== formatShort(slot.date);
-          return (
-            <Tile
-              key={`${slot.classroomId}-${slot.date}`}
-              label="Snack day"
-              tone={soonest ? 'sage' : 'plain'}
-            >
-              <p className={`mt-1 text-[22px] font-bold ${soonest ? '' : 'text-ink'}`}>
-                {slot.claimedForChildName ?? 'Snacks'}
-                {showRel && (
-                  <span className={`ml-2 text-[15px] font-medium ${soonest ? 'text-white/75' : 'text-muted'}`}>{rel}</span>
-                )}
-              </p>
-              <p className={`mt-1 text-sm ${soonest ? 'text-white/85' : 'text-muted'}`}>
-                {formatLong(slot.date)}{slot.classroomName ? ` · ${slot.classroomName}` : ''}
-              </p>
-              <span className={`mt-auto inline-flex self-start rounded-full px-3 py-1.5 text-sm font-medium
-                                ${soonest ? 'bg-white/15' : 'bg-black/5 text-ink'}`}>
-                Dry snack and fruit
-              </span>
-            </Tile>
-          );
-        }) : (
-          <Tile label="Snack day">
+        ) : soon.length ? (
+          // One tile for the family: every booked day this month and next,
+          // one under the other, the soonest first and lifted.
+          <Tile label="Snack days" tone="sage">
+            <ul className="mt-1 flex min-h-0 flex-1 flex-col gap-2">
+              {soon.slice(0, 3).map((slot, i) => {
+                const rel = relativeLabel(slot.date, mine!.today);
+                const showRel = rel !== formatShort(slot.date);
+                return (
+                  <li
+                    key={`${slot.classroomId}-${slot.date}`}
+                    className={`rounded-xl px-3 py-2 ${i === 0 ? 'bg-white/15' : 'bg-white/5'}`}
+                  >
+                    <p className={`font-bold ${i === 0 ? 'text-[19px]' : 'text-[16px]'}`}>
+                      {slot.claimedForChildName ?? 'Snacks'}
+                      {showRel && <span className="ml-2 text-[13px] font-medium text-white/75">{rel}</span>}
+                    </p>
+                    <p className="text-[13px] text-white/85">
+                      {formatShort(slot.date)}{slot.classroomName ? ` · ${slot.classroomName}` : ''}
+                    </p>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="mt-2 text-[12px] text-white/70">
+              {soon.length > 3 ? `+${soon.length - 3} more · ` : ''}Dry snack and fruit
+            </p>
+          </Tile>
+        ) : (
+          <Tile label="Snack days">
             <p className="mt-1 text-lg font-bold text-ink">{later > 0 ? 'Nothing this month or next' : 'No day booked yet'}</p>
             <p className="mt-1 text-sm text-muted">
               {later > 0
