@@ -298,7 +298,7 @@ export class BmsStack extends cdk.Stack {
     // and 404 bodies with an HTML page the client cannot parse.
     const rewriteFn = new cloudfront.Function(this, 'RewriteFunction', {
       code: cloudfront.FunctionCode.fromInline(`
-var ROUTES = ['/', '/login/', '/snacks/', '/me/', '/admin/', '/what-to-bring/', '/calendar/', '/news/'];
+var ROUTES = ['/', '/login/', '/snacks/', '/me/', '/admin/', '/what-to-bring/', '/calendar/', '/news/', '/privacy/', '/sms-terms/'];
 
 function handler(event) {
   var request = event.request;
