@@ -11,7 +11,7 @@ and — the part the whiteboard could never do — reminds them.
 ## Setting up
 
 Already done for this deployment — the school record (Burlington Montessori
-School, America/New_York, reminders at 5pm), a `Primary` classroom needing
+School, America/New_York, reminders at 3pm), a `Primary` classroom needing
 snacks Monday–Friday, and a staff account for +1 617 838 5268 all exist.
 
 ### Adding one child by hand
@@ -487,7 +487,7 @@ when the school says go. The one-parent test send (`--only`) still works while
 paused, by design.
 
 
-A Lambda wakes every hour and asks the school's own clock whether it is 5pm in
+A Lambda wakes every hour and asks the school's own clock whether it is 3pm in
 `America/New_York`. If it is, it plans the day's reminders:
 
 | Reminder | Who gets it | How often |
