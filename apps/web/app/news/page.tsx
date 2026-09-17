@@ -6,7 +6,7 @@ import { api } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { NewsletterArticle, myClassroomsOf } from '@/components/newsletter';
-import { Card, EmptyState, PageHeader, Skeleton } from '@/components/ui';
+import { EmptyState, PageHeader, Skeleton } from '@/components/ui';
 
 export default function NewsPage() {
   const { me } = useSession();
@@ -62,11 +62,6 @@ export default function NewsPage() {
         </>
       )}
 
-      {list?.length ? (
-        <Card className="mt-6 bg-transparent border-0 p-0">
-          <p className="px-1 text-xs text-muted">Wording is the school’s own; only the headings are the app’s.</p>
-        </Card>
-      ) : null}
     </Shell>
   );
 }
