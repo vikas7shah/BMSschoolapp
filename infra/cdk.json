@@ -27,6 +27,8 @@
     "smsEnabled": false,
     "alertEmail": "vikas.shah@homeoperationshub.com",
     "budgetUsd": 10,
-    "devLogin": true
+    "devLogin": true,
+    "domainName": "bms.homeoperationshub.com",
+    "certificateArn": "arn:aws:acm:us-east-1:778715730128:certificate/4313e2f0-d23e-4959-992a-a9cf9c21f3aa"
   }
 }

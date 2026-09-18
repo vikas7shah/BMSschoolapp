@@ -15,6 +15,7 @@ import * as s3 from 'aws-cdk-lib/aws-s3';
 import * as s3deploy from 'aws-cdk-lib/aws-s3-deployment';
 import * as secrets from 'aws-cdk-lib/aws-secretsmanager';
 import * as ssm from 'aws-cdk-lib/aws-ssm';
+import * as acm from 'aws-cdk-lib/aws-certificatemanager';
 import * as cr from 'aws-cdk-lib/custom-resources';
 import { Construct } from 'constructs';
 import { Tables } from './tables';
@@ -42,6 +43,9 @@ export interface BmsStackProps extends cdk.StackProps {
    * alert. Set false and deploy to remove the route and the secret together.
    */
   devLogin: boolean;
+  /** Custom domain for the app, with its ACM certificate (us-east-1). */
+  domainName?: string;
+  certificateArn?: string;
 }
 
 export class BmsStack extends cdk.Stack {
@@ -375,7 +379,16 @@ function handler(event) {
 
     const siteOrigin = origins.S3BucketOrigin.withOriginAccessControl(siteBucket);
 
+    const custom = props.domainName && props.certificateArn
+      ? {
+          domainNames: [props.domainName],
+          certificate: acm.Certificate.fromCertificateArn(this, 'SiteCertificate', props.certificateArn),
+        }
+      : {};
+    const appUrl = props.domainName ? `https://${props.domainName}` : undefined;
+
     const distribution = new cloudfront.Distribution(this, 'Distribution', {
+      ...custom,
       comment: `BMS ${stage}`,
       defaultRootObject: 'index.html',
       httpVersion: cloudfront.HttpVersion.HTTP2_AND_3,
@@ -421,7 +434,7 @@ function handler(event) {
 
     new ssm.StringParameter(this, 'AppUrlParameter', {
       parameterName: appUrlParamName,
-      stringValue: `https://${distribution.distributionDomainName}`,
+      stringValue: appUrl ?? `https://${distribution.distributionDomainName}`,
       description: 'Public URL of the BMS app, read at runtime by the backend',
     });
 
@@ -464,7 +477,7 @@ function handler(event) {
     /* ------------------------------------------------------------- outputs */
 
     new cdk.CfnOutput(this, 'AppUrl', {
-      value: `https://${distribution.distributionDomainName}`,
+      value: appUrl ?? `https://${distribution.distributionDomainName}`,
       description: 'Open this to use the app',
     });
     new cdk.CfnOutput(this, 'UserPoolId', { value: userPool.userPoolId });

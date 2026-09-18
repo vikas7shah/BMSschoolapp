@@ -3,7 +3,7 @@
 Replaces the snack-day whiteboard with an app parents can use from their phone,
 and — the part the whiteboard could never do — reminds them.
 
-**Live:** https://d3ev09ilchw30c.cloudfront.net
+**Live:** https://bms.homeoperationshub.com
 **AWS account:** 778715730128 · **Region:** us-east-1 · **Stack:** `Bms-prod`
 
 ---
