@@ -15,9 +15,9 @@ const CHANNEL_COPY: Record<Channel, { label: string; hint: string }> = {
     // This wording is the consent the carrier registration describes.
     // Carrier-reviewed consent wording: names SMS, what the texts are, and
     // how often. Change it and the toll-free registration must be updated.
-    hint: 'I agree to receive SMS text messages from Burlington Montessori School at my number: '
-      + 'snack-day reminders and sign-in codes, about 2–4 a month. Message and data rates may apply. '
-      + 'Reply STOP to opt out, HELP for help.',
+    hint: 'I agree to receive SMS text messages from Home Operations Hub (Galaxy Holdings LLC) on behalf of '
+      + 'Burlington Montessori School at my number: snack-day reminders and sign-in codes, about 2–4 a month. '
+      + 'Message and data rates may apply. Reply STOP to opt out, HELP for help.',
   },
   email: { label: 'Email', hint: 'A copy in your inbox.' },
   push: { label: 'Push notification', hint: 'Alerts on this device.' },
@@ -100,7 +100,12 @@ export default function MePage() {
             <li key={channel} className="flex items-center justify-between gap-4 py-3">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-ink">{CHANNEL_COPY[channel].label}</p>
-                <p className="text-xs text-muted">{CHANNEL_COPY[channel].hint}</p>
+                <p className="text-xs text-muted">
+                  {CHANNEL_COPY[channel].hint}
+                  {channel === 'sms' && (
+                    <> <a href="/sms-terms/" className="underline underline-offset-2">Terms</a> · <a href="/privacy/" className="underline underline-offset-2">Privacy</a></>
+                  )}
+                </p>
               </div>
               <Toggle
                 label={CHANNEL_COPY[channel].label}

@@ -18,9 +18,15 @@ export default function SmsTermsPage() {
       <h2>How you opt in</h2>
       <p>
         Nobody is texted without asking. Text messages are off for every family until you sign in,
-        open <strong>You</strong>, and switch on <strong>Text message</strong>. The switch shows the full consent
-        statement and the number that will be used. Consent is yours alone; school staff cannot switch it on for you.
+        open <strong>You</strong>, and switch on <strong>Text message</strong>. The switch shows this consent
+        statement and the number that will be used:
       </p>
+      <p>
+        <em>“I agree to receive SMS text messages from Home Operations Hub (Galaxy Holdings LLC) on behalf of
+        Burlington Montessori School at my number: snack-day reminders and sign-in codes, about 2–4 a month.
+        Message and data rates may apply. Reply STOP to opt out, HELP for help.”</em>
+      </p>
+      <p>Consent is yours alone; school staff cannot switch it on for you.</p>
 
       <h2>How you opt out</h2>
       <ul>
