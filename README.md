@@ -472,6 +472,14 @@ Changing `RELEASE_NOTICE_DAYS` changes both the rule and the wording.
 
 ## How the reminders work
 
+**Who gets the "days still need a family" nudge.** Only families with no day
+booked in that month — and "booked" means a day for any of the family's
+children, taken by either parent, anywhere in the month, not just inside the
+reminder window. A family holding the 25th is left alone on the 1st. The
+dashboard's "families have nothing booked" count and the *Remind them* button
+use the same rule.
+
+
 **The office's view.** An admin's Home is a coverage dashboard, not a family
 page: for each classroom, this month and next, how many days are filled and
 how many families have nothing booked — with a *Remind them* button that sends

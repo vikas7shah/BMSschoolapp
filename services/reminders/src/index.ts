@@ -46,8 +46,11 @@ export const handler = async (event: InvokeEvent = {}) => {
   const cfg = DEFAULT_REMINDER_CONFIG;
   const horizon = Math.max(cfg.nextWeekDays, cfg.openSlotHorizonDays) + 1;
 
+  // Slots through the end of the month after the horizon: "has this family
+  // booked this month?" must see the whole month, not just the next few days.
+  const monthEnd = (d: string) => new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)).toISOString().slice(0, 10);
   const [slots, users, children, links, classrooms] = await Promise.all([
-    listSlotsBySchool(school.schoolId, today, addDays(today, horizon)),
+    listSlotsBySchool(school.schoolId, today, monthEnd(addDays(today, horizon))),
     listUsers(school.schoolId),
     listChildren(school.schoolId),
     listAllGuardianships(),
@@ -56,12 +59,14 @@ export const handler = async (event: InvokeEvent = {}) => {
 
   const classroomOf = new Map(children.map((k) => [k.childId, k.classroomId]));
   const roomsByUser = new Map<string, Set<string>>();
+  const kidsByUser = new Map<string, string[]>();
   for (const link of links) {
     const room = classroomOf.get(link.childId);
     if (!room) continue;
     const set = roomsByUser.get(link.userId) ?? new Set<string>();
     set.add(room);
     roomsByUser.set(link.userId, set);
+    kidsByUser.set(link.userId, [...(kidsByUser.get(link.userId) ?? []), link.childId]);
   }
 
   const userById = new Map(users.map((u) => [u.userId, u]));
@@ -74,6 +79,7 @@ export const handler = async (event: InvokeEvent = {}) => {
       userId: u.userId,
       firstName: u.firstName,
       classroomIds: [...(roomsByUser.get(u.userId) ?? [])],
+      childIds: kidsByUser.get(u.userId) ?? [],
     }));
 
   const only = event.onlyUserIds?.length ? new Set(event.onlyUserIds) : null;

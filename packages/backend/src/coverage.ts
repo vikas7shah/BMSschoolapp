@@ -24,25 +24,33 @@ export function coverageByMonth(slots: SnackSlot[], months: string[]): MonthCove
 }
 
 /**
- * Parents who have a child in the classroom and no snack day booked there
- * from `today` on. The same list drives the dashboard count and the
- * "remind now" send, so the two can never disagree.
+ * Parents who have a child in the classroom and no snack day booked for that
+ * child this month (either parent's booking counts). The same list drives the
+ * dashboard count and the "remind now" send, so the two can never disagree.
  */
 export async function unbookedParents(
   schoolId: string, classroom: Classroom, today: string,
 ): Promise<User[]> {
+  const month = monthOf(today);
   const [users, links, children, slots] = await Promise.all([
     listUsers(schoolId),
     listAllGuardianships(),
     listChildren(schoolId),
-    listSlotsBySchool(schoolId, today, '9999-12-31'),
+    listSlotsBySchool(schoolId, `${month}-01`, `${month}-31`),
   ]);
   const inRoom = new Set(children.filter((k) => k.classroomId === classroom.classroomId).map((k) => k.childId));
-  const parentIds = new Set(links.filter((l) => inRoom.has(l.childId)).map((l) => l.userId));
-  const booked = new Set(
-    slots.filter((s) => s.classroomId === classroom.classroomId && s.status === 'CLAIMED')
-      .map((s) => s.claimedByUserId),
+  const bookedKids = new Set(
+    slots.filter((s) => s.classroomId === classroom.classroomId && s.status === 'CLAIMED' && s.claimedForChildId)
+      .map((s) => s.claimedForChildId!),
   );
+  const bookedByUser = new Set(
+    slots.filter((s) => s.classroomId === classroom.classroomId && s.status === 'CLAIMED').map((s) => s.claimedByUserId),
+  );
+  // A parent is booked if any of their children in this room has a day.
+  const kidsOf = new Map<string, string[]>();
+  for (const l of links) if (inRoom.has(l.childId)) kidsOf.set(l.userId, [...(kidsOf.get(l.userId) ?? []), l.childId]);
   return users.filter((u) => u.role === 'PARENT' && u.status !== 'DISABLED'
-    && parentIds.has(u.userId) && !booked.has(u.userId));
+    && kidsOf.has(u.userId)
+    && !bookedByUser.has(u.userId)
+    && !(kidsOf.get(u.userId) ?? []).some((k) => bookedKids.has(k)));
 }

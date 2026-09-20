@@ -39,6 +39,8 @@ export interface PlannerParent {
   userId: string;
   firstName: string;
   classroomIds: string[];
+  /** The family's children — a day booked for any of them counts as the family's. */
+  childIds?: string[];
 }
 
 export interface PlannerInput {
@@ -87,12 +89,10 @@ export function planReminders(input: PlannerInput): PlannedNotification[] {
   }
 
   // --- 3 & 4: nudges about unfilled days -----------------------------------
-  // Only parents with nothing booked are asked to step up; families who have
-  // already taken a turn are left alone.
-  const claimedByUser = new Set(
-    input.slots.filter((s) => s.status === 'CLAIMED' && s.claimedByUserId).map((s) => s.claimedByUserId!),
-  );
-
+  // Only families with nothing booked are asked to step up. "Booked" is per
+  // month and per family: a day for any of the family's children, taken by
+  // either parent, in the month the open days fall in, and the whole month
+  // counts — not just the days inside the reminder horizon.
   const openByClassroom = new Map<string, CivilDate[]>();
   for (const slot of input.slots) {
     if (slot.status !== 'OPEN') continue;
@@ -101,18 +101,30 @@ export function planReminders(input: PlannerInput): PlannedNotification[] {
     list.push(slot.date);
     openByClassroom.set(slot.classroomId, list);
   }
+  const claimed = input.slots.filter((s) => s.status === 'CLAIMED');
+  const familyHasDayIn = (parent: PlannerParent, month: string) => claimed.some((s) =>
+    s.date.slice(0, 7) === month
+    && (s.claimedByUserId === parent.userId
+      || (!!s.claimedForChildId && (parent.childIds ?? []).includes(s.claimedForChildId))));
 
   const weekBucket = startOfWeek(today);
 
   for (const parent of input.parents) {
-    if (claimedByUser.has(parent.userId)) continue; // already doing their part
+    // The months the open days fall in; a family booked in every one of them
+    // has nothing to be asked for.
+    const openMonths = new Set(
+      parent.classroomIds.flatMap((cid) => (openByClassroom.get(cid) ?? []).map((d) => d.slice(0, 7))),
+    );
+    const monthsNeeding = [...openMonths].filter((m) => !familyHasDayIn(parent, m));
+    if (openMonths.size > 0 && monthsNeeding.length === 0) continue; // already doing their part
+    if (openMonths.size === 0 && familyHasDayIn(parent, today.slice(0, 7))) continue;
 
     // Aggregate across every classroom this parent has a child in.
     let openCount = 0;
     let soonest: CivilDate | undefined;
     let classroomName: string | undefined;
     for (const cid of parent.classroomIds) {
-      const dates = openByClassroom.get(cid);
+      const dates = openByClassroom.get(cid)?.filter((d) => monthsNeeding.includes(d.slice(0, 7)));
       if (!dates?.length) continue;
       openCount += dates.length;
       const min = dates.reduce((a, b) => (a < b ? a : b));

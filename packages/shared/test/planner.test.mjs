@@ -51,6 +51,27 @@ test('an empty calendar is nudged weekly, not daily, even when it starts tomorro
   for (const n of fresh) assert.ok(n.message.dedupeKey.endsWith(startOfWeek(TODAY)), 'weekly bucket');
 });
 
+test('a family with a day this month is not nudged, even if it is outside the horizon', () => {
+  // u1 holds the 25th (well past the 10-day horizon); open days remain.
+  const month = TODAY.slice(0, 7);
+  const r = planReminders(input([claimed(`${month}-25`, 'u1'), open(addDays(TODAY, 2))]));
+  assert.ok(!r.some((n) => n.userId === 'u1' && n.message.type === 'SLOT_OPEN'), 'u1 left alone');
+  assert.ok(r.some((n) => n.userId === 'u2' && n.message.type === 'SLOT_OPEN'), 'u2 still nudged');
+});
+
+test('the other parent of a booked child is not nudged either', () => {
+  const month = TODAY.slice(0, 7);
+  const kids = { parents: [
+    { userId: 'u1', firstName: 'Ana', classroomIds: ['c1'], childIds: ['k1'] },
+    { userId: 'u2', firstName: 'Ben', classroomIds: ['c1'], childIds: ['k1'] },
+    { userId: 'u3', firstName: 'Cy', classroomIds: ['c1'], childIds: ['k2'] },
+  ] };
+  const slot = { ...claimed(`${month}-25`, 'u1', 'Kid'), claimedForChildId: 'k1' };
+  const r = planReminders(input([slot, open(addDays(TODAY, 2))], kids));
+  const nudged = r.filter((n) => n.message.type === 'SLOT_OPEN').map((n) => n.userId);
+  assert.deepEqual(nudged, ['u3'], 'only the family without a day');
+});
+
 test('urgent gaps dedupe daily, distant gaps dedupe weekly', () => {
   const urgent = planReminders(input([open(addDays(TODAY, 2))]));
   assert.ok(urgent[0].message.dedupeKey.endsWith(TODAY));
