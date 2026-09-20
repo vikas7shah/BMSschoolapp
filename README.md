@@ -489,10 +489,12 @@ once a day per classroom. An admin who is also a parent sees their family's days
 (There is no separate Overview tab; Admin holds Families, Import and Set-up.)
 
 
-**Pause switch.** Admin → Set-up → *Reminders* pauses every outgoing email and
-text (sign-in codes are unaffected). Load and check a roster paused; resume
-when the school says go. The one-parent test send (`--only`) still works while
-paused, by design.
+**Two pause switches.** Admin → Set-up → *Reminders*. *All reminders* pauses
+every outgoing email and text (sign-in codes are unaffected) — load and check a
+roster paused; resume when the school says go. *"Days still need a family"
+nudges* pauses only those; a family's own day-before and week-before reminders
+still go, and the office's *Remind them* button still works. The one-parent
+test send (`--only`) works while either is paused, by design.
 
 
 A Lambda wakes every hour and asks the school's own clock whether it is 3pm in

@@ -20,12 +20,17 @@ export const slotSk = (date: string) => date;
 
 /* ------------------------------------------------------------------ schools */
 
-export async function setRemindersPaused(schoolId: string, paused: boolean): Promise<void> {
+export async function setReminderSwitches(
+  schoolId: string, patch: Partial<Pick<School, 'remindersPaused' | 'openSlotNudgesPaused'>>,
+): Promise<void> {
+  const entries = Object.entries(patch).filter(([, v]) => typeof v === 'boolean');
+  if (!entries.length) return;
   await ddb.send(new UpdateCommand({
     TableName: T.schools,
     Key: { schoolId },
-    UpdateExpression: 'SET remindersPaused = :p',
-    ExpressionAttributeValues: { ':p': paused },
+    UpdateExpression: `SET ${entries.map(([k], i) => `#k${i} = :v${i}`).join(', ')}`,
+    ExpressionAttributeNames: Object.fromEntries(entries.map(([k], i) => [`#k${i}`, k])),
+    ExpressionAttributeValues: Object.fromEntries(entries.map(([, v], i) => [`:v${i}`, v])),
     ConditionExpression: 'attribute_exists(schoolId)',
   }));
 }

@@ -278,52 +278,70 @@ function RemindersCard({ onChanged, onError }: {
   onChanged: (msg: string) => void;
   onError: (msg: string) => void;
 }) {
-  const [paused, setPaused] = useState<boolean | null>(null);
-  const [busy, setBusy] = useState(false);
+  type Switches = { remindersPaused: boolean; openSlotNudgesPaused: boolean };
+  const [sw, setSw] = useState<Switches | null>(null);
+  const [busy, setBusy] = useState<keyof Switches | null>(null);
 
   useEffect(() => {
-    api.get<{ remindersPaused: boolean }>('/api/admin/school')
-      .then((r) => setPaused(r.remindersPaused))
-      .catch(() => setPaused(false));
+    api.get<Switches>('/api/admin/school')
+      .then((r) => setSw({ remindersPaused: r.remindersPaused, openSlotNudgesPaused: r.openSlotNudgesPaused }))
+      .catch(() => setSw({ remindersPaused: false, openSlotNudgesPaused: false }));
   }, []);
 
-  async function flip() {
-    if (paused === null) return;
-    setBusy(true);
+  async function flip(key: keyof Switches) {
+    if (!sw) return;
+    setBusy(key);
     try {
-      const r = await api.patch<{ remindersPaused: boolean }>('/api/admin/school', { remindersPaused: !paused });
-      setPaused(r.remindersPaused);
-      onChanged(r.remindersPaused ? 'Reminders paused. Nothing will be sent until you resume.' : 'Reminders are on.');
+      const r = await api.patch<Switches>('/api/admin/school', { [key]: !sw[key] });
+      setSw(r);
+      onChanged(key === 'remindersPaused'
+        ? (r.remindersPaused ? 'All reminders paused. Nothing will be sent until you resume.' : 'Reminders are on.')
+        : (r.openSlotNudgesPaused ? '"Days still need a family" nudges paused.' : '"Days still need a family" nudges are on.'));
     } catch (err) {
       onError(err instanceof ApiError ? err.message : 'Could not change that.');
-    } finally { setBusy(false); }
+    } finally { setBusy(null); }
   }
+
+  const Row = ({ k, title, on, off }: { k: keyof Switches; title: string; on: string; off: string }) => {
+    const paused = sw?.[k] ?? null;
+    // The narrower switch is moot while everything is paused.
+    const moot = k === 'openSlotNudgesPaused' && !!sw?.remindersPaused;
+    return (
+      <div className={`flex items-start justify-between gap-3 py-3 ${moot ? 'opacity-50' : ''}`}>
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-ink">{title}</p>
+          <p className="mt-0.5 text-xs text-muted">{paused === null ? 'Checking…' : paused ? off : on}</p>
+        </div>
+        <Button
+          size="sm"
+          variant={paused ? 'primary' : 'ghost'}
+          loading={busy === k}
+          disabled={paused === null || moot}
+          onClick={() => void flip(k)}
+        >
+          {paused ? 'Resume' : 'Pause'}
+        </Button>
+      </div>
+    );
+  };
 
   return (
     <Card>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h2 className="font-semibold text-ink">Reminders</h2>
-          <p className="mt-1 text-sm text-muted">
-            {paused === null ? 'Checking…' : paused
-              ? 'Paused — no emails or texts go out, whatever the calendar says. Sign-in codes still work.'
-              : 'On — families hear the day before their snack day, and when days still need someone.'}
-          </p>
-        </div>
-        <span className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold
-                          ${paused ? 'bg-clay-soft text-clay' : 'bg-sage-soft text-sage-dark'}`}>
-          {paused === null ? '…' : paused ? 'Paused' : 'On'}
-        </span>
+      <h2 className="font-semibold text-ink">Reminders</h2>
+      <div className="mt-1 divide-y divide-line">
+        <Row
+          k="remindersPaused"
+          title="All reminders"
+          on="On — families hear the day before their snack day, a week before, and when days still need someone."
+          off="Paused — no emails or texts go out, whatever the calendar says. Sign-in codes still work."
+        />
+        <Row
+          k="openSlotNudgesPaused"
+          title="“Days still need a family” nudges"
+          on="On — families with no day booked this month are nudged about open days."
+          off="Paused — nobody is nudged about open days. Families still get reminders for the day they hold. The Remind them button still works."
+        />
       </div>
-      <Button
-        className="mt-4 w-full"
-        variant={paused ? 'primary' : 'ghost'}
-        loading={busy}
-        disabled={paused === null}
-        onClick={() => void flip()}
-      >
-        {paused ? 'Resume reminders' : 'Pause reminders'}
-      </Button>
     </Card>
   );
 }

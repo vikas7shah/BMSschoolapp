@@ -37,6 +37,8 @@ export interface School {
   reminderHour: number;
   /** While true the sweep sends nothing — for loading a roster before go-live. */
   remindersPaused?: boolean;
+  /** While true the "days still need a family" nudges stay off; a family's own day reminders still go. */
+  openSlotNudgesPaused?: boolean;
   createdAt: string;
 }
 

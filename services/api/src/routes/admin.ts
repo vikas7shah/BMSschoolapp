@@ -8,7 +8,7 @@ import {
   childrenForGuardian, coverageByMonth, createChild, createClassroom, createUser, deleteUser, endOfNextMonth,
   getClassroom, getSchool, getUserByEmail, getUserByPhone, invokeReminders, linkGuardian,
   listAllGuardianships, listChildren, listClassrooms, listSlotsBySchool, listUsers, markNudged,
-  publishRange, setRemindersPaused, unbookedParents, updateUser,
+  publishRange, setReminderSwitches, unbookedParents, updateUser,
 } from '@bms/backend';
 import { createCognitoUser } from '../cognito.js';
 import { removeChild, removeParent } from '../removal.js';
@@ -21,15 +21,27 @@ const route = new Hono<{ Variables: Vars }>();
 route.get('/api/admin/school', async (c) => {
   const school = await getSchool(c.get('user').schoolId);
   if (!school) return c.json({ error: 'Not found' }, 404);
-  return c.json({ remindersPaused: !!school.remindersPaused, reminderHour: school.reminderHour });
+  return c.json({
+    remindersPaused: !!school.remindersPaused,
+    openSlotNudgesPaused: !!school.openSlotNudgesPaused,
+    reminderHour: school.reminderHour,
+  });
 });
 
-/** The go-live switch: while paused the hourly sweep sends nothing at all. */
+/**
+ * Two switches. `remindersPaused` is the go-live switch: nothing at all goes
+ * out. `openSlotNudgesPaused` keeps only the "days still need a family"
+ * nudges off — a family's own day-before and week-before reminders still go.
+ */
 route.patch('/api/admin/school', async (c) => {
   const body = await c.req.json().catch(() => ({}));
-  if (typeof body.remindersPaused !== 'boolean') return c.json({ error: 'remindersPaused must be true or false' }, 400);
-  await setRemindersPaused(c.get('user').schoolId, body.remindersPaused);
-  return c.json({ remindersPaused: body.remindersPaused });
+  const patch: { remindersPaused?: boolean; openSlotNudgesPaused?: boolean } = {};
+  if (typeof body.remindersPaused === 'boolean') patch.remindersPaused = body.remindersPaused;
+  if (typeof body.openSlotNudgesPaused === 'boolean') patch.openSlotNudgesPaused = body.openSlotNudgesPaused;
+  if (!Object.keys(patch).length) return c.json({ error: 'Nothing to change' }, 400);
+  await setReminderSwitches(c.get('user').schoolId, patch);
+  const school = await getSchool(c.get('user').schoolId);
+  return c.json({ remindersPaused: !!school?.remindersPaused, openSlotNudgesPaused: !!school?.openSlotNudgesPaused });
 });
 
 /* --------------------------------------------------------------- classrooms */

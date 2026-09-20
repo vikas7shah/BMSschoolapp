@@ -90,7 +90,10 @@ export const handler = async (event: InvokeEvent = {}) => {
     slots,
     parents,
     config: cfg,
-  }).filter((p) => !only || only.has(p.userId));
+  }).filter((p) => !only || only.has(p.userId))
+    // Open-day nudges can be held back on their own; the office's "remind
+    // now" names its recipients and goes regardless.
+    .filter((p) => !(school.openSlotNudgesPaused && !only && (p.message.type === 'SLOT_OPEN' || p.message.type === 'NEVER_SIGNED_UP')));
 
   if (event.dryRun) {
     console.log(JSON.stringify({
