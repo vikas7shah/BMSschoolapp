@@ -17,6 +17,9 @@ const FIRST_MONTH = monthOf(SCHOOL_YEAR.start);
 const LAST_MONTH = monthOf(SCHOOL_YEAR.end);
 const clampMonth = (m: string) => (m < FIRST_MONTH ? FIRST_MONTH : m > LAST_MONTH ? LAST_MONTH : m);
 
+/** A long single word ("Thanksgiving") gets a smaller size so it fits a narrow cell unbroken. */
+const longestWord = (t: string) => Math.max(0, ...t.split(/\s+/).map((w) => w.length));
+
 /** Why a weekday has no snack day, when it is not a closure. */
 function outOfYear(date: CivilDate): string | null {
   if (date < SCHOOL_YEAR.start) return 'Before school starts';
@@ -146,7 +149,10 @@ export function SnackCalendar({
               ) : closed ? (
                 // The reason itself, from the school calendar — "Thanksgiving",
                 // not just "Closed". Long names wrap to three lines.
-                <span className="line-clamp-3 w-full text-[10px] font-semibold leading-tight text-clay/90 [overflow-wrap:anywhere]">
+                <span
+                  className={`line-clamp-3 w-full font-semibold leading-tight text-clay/90 hyphens-auto
+                    ${longestWord(closureReason(date) ?? '') > 10 ? 'text-[8.5px]' : 'text-[10px]'}`}
+                >
                   {closureReason(date) ?? 'Closed'}
                 </span>
               ) : null}
