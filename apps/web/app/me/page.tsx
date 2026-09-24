@@ -15,9 +15,8 @@ const CHANNEL_COPY: Record<Channel, { label: string; hint: string }> = {
     // This wording is the consent the carrier registration describes.
     // Carrier-reviewed consent wording: names SMS, what the texts are, and
     // how often. Change it and the toll-free registration must be updated.
-    hint: 'I agree to receive SMS text messages from Home Operations Hub (Galaxy Holdings LLC) on behalf of '
-      + 'Burlington Montessori School at my number: snack-day reminders and sign-in codes, about 2–4 a month. '
-      + 'Message and data rates may apply. Reply STOP to opt out, HELP for help.',
+    hint: 'Snack-day reminders and sign-in codes from Burlington Montessori School. About 2–4 texts a month. '
+      + 'Msg & data rates may apply. Reply STOP to cancel, HELP for help.',
   },
   email: { label: 'Email', hint: 'A copy in your inbox.' },
   push: { label: 'Push notification', hint: 'Alerts on this device.' },
