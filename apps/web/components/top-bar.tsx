@@ -3,16 +3,19 @@
 import { useSession } from '@/lib/session';
 
 /**
- * Slim bar above every signed-in page with the sign-out control top right.
- * Sits in the page flow rather than fixed, so it can never overlap a long
- * page title on a narrow screen.
+ * Slim bar above every signed-in page: who runs the app on the left, the
+ * sign-out control on the right. Sits in the page flow rather than fixed, so
+ * it can never overlap a long page title on a narrow screen.
  */
-export function TopBar() {
+export function TopBar({ wide }: { wide?: boolean }) {
   const { me, signOut } = useSession();
   if (!me) return null;
 
   return (
-    <div className="mx-auto flex w-full max-w-lg items-center justify-end px-5 pt-3">
+    <div className={`mx-auto flex w-full items-center justify-between px-5 pt-3 ${wide ? 'max-w-5xl' : 'max-w-lg'}`}>
+      <span className="text-xs font-semibold tracking-tight text-muted">
+        Home Operations Hub
+      </span>
       <button
         type="button"
         onClick={() => void signOut()}

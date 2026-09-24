@@ -21,7 +21,7 @@ export function Shell({ children, wide }: { children: React.ReactNode; wide?: bo
 
   return (
     <>
-      <TopBar />
+      <TopBar wide={wide} />
       <main className={`mx-auto w-full px-5 pt-4 pb-28 ${wide ? 'max-w-5xl' : 'max-w-lg'}`}>{children}</main>
       <BottomNav />
     </>
