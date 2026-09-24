@@ -144,8 +144,10 @@ export function SnackCalendar({
                       {past ? '—' : 'Open'}
                     </span>
               ) : closed ? (
-                <span className="w-full truncate text-[10px] leading-tight text-clay/80">
-                  Closed
+                // The reason itself, from the school calendar — "Thanksgiving",
+                // not just "Closed". Long names wrap to three lines.
+                <span className="line-clamp-3 w-full text-[10px] font-semibold leading-tight text-clay/90 [overflow-wrap:anywhere]">
+                  {closureReason(date) ?? 'Closed'}
                 </span>
               ) : null}
             </button>
