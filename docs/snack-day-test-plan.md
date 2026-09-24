@@ -33,7 +33,7 @@ turned. "Locked" means inside the 2-day notice window.
 | # | Scenario | Steps | Expected |
 |---|---|---|---|
 | B1 | First booking | P1 → an open October day → Assign this day to me | Cell turns green with "Testchild1"; panel says "You're bringing snacks for Testchild1"; Home tile shows the day |
-| B2 | Confirmation arrives | after B1 | Email to yogitaj508+test1@… confirming the day; in-app message under You |
+| B2 | Confirmation arrives | after B1 | Confirmation email sent (to the SES simulator, so nobody receives it); in-app message under You |
 | B3 | Someone else's day | P1 → a day already taken by another family | Panel names the child; no Assign button |
 | B4 | Two families, same second | P1 and P2 both tap Assign on the same open day (two devices) | One gets it; the other sees "Another family just took that slot" and the board refreshes |
 | B5 | Which child? | P2 → Vansh tab → open day → Assign | Books for Vansh (the tab decides); cell shows "Vansh" |

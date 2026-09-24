@@ -16,9 +16,10 @@ import { readFileSync } from 'node:fs';
 import { GetSecretValueCommand, SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { REGION, STACK, stackOutputs } from './lib/stack.mjs';
 
-const INBOX = 'yogitaj508@gmail.com';
-// Gmail delivers user+anything@ to user@ — three distinct addresses in the
-// app (the app requires one address per account), one inbox for the tester.
+// Amazon SES's mailbox simulator: mail is accepted and discarded, so the
+// sign-in check below exercises real delivery without landing in anyone's
+// inbox. +labels give each family its own address.
+const INBOX = 'success@simulator.amazonses.com';
 const [local, domain] = INBOX.split('@');
 const FAMILIES = [1, 2, 3].map((n) => ({
   firstName: `Yogita${n}`, lastName: 'Test', email: `${local}+test${n}@${domain}`,

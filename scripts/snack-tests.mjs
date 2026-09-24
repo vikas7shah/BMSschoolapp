@@ -22,7 +22,7 @@ const sm = new SecretsManagerClient({ region: REGION });
 /* ------------------------------------------------------------ seats */
 
 const SEATS = {
-  P1: { identifier: 'yogitaj508+test1@gmail.com', username: '01M2JV2QM4MXCCRBFEDKGBCMYJ' },
+  P1: { identifier: 'success+test1@simulator.amazonses.com', username: '01M2JV2QM4MXCCRBFEDKGBCMYJ' },
   P2: { identifier: 'yogitaj508@gmail.com', username: '+18575235230' },
   P2b: { identifier: '6178385268', username: '+16178385268' },
   A: { code: true },
@@ -343,11 +343,11 @@ notRun('D5', 'needs every upcoming day in a room booked — not safe to do on li
 /* ---- H. Staff changes (destructive — only on test data, only reversible) */
 {
   const parents = await A.call('GET', '/api/admin/parents');
-  const y3 = parents.parents.find((p) => p.email === 'yogitaj508+test3@gmail.com');
+  const y3 = parents.parents.find((p) => p.email === 'success+test3@simulator.amazonses.com');
   const k3 = y3?.children[0];
   if (y3 && k3) {
     // Book a day for Yogita3 first so the removal has something to reopen.
-    const P3 = new Session('P3'); SEATS.P3 = { identifier: 'yogitaj508+test3@gmail.com', username: y3.userId }; await P3.signIn();
+    const P3 = new Session('P3'); SEATS.P3 = { identifier: 'success+test3@simulator.amazonses.com', username: y3.userId }; await P3.signIn();
     const b3 = await board(P3, C3);
     const d = openDays(b3, C3, nextMonthFirst, addDays(nextMonthFirst, 40))[8];
     await P3.call('POST', '/api/snacks/claim', { classroomId: C3, date: d });
@@ -379,7 +379,7 @@ for (const c of cleanup) {
   await A.call('POST', '/api/snacks/release', { classroomId: c.classroomId, date: c.date });
 }
 // Put Yogita3 back.
-await A.call('POST', '/api/admin/parents/import', { families: [{ firstName: 'Yogita3', lastName: 'Test', email: 'yogitaj508+test3@gmail.com', children: [{ firstName: 'Testchild3', lastName: 'Test', classroomId: C3 }] }], children: [] });
+await A.call('POST', '/api/admin/parents/import', { families: [{ firstName: 'Yogita3', lastName: 'Test', email: 'success+test3@simulator.amazonses.com', children: [{ firstName: 'Testchild3', lastName: 'Test', classroomId: C3 }] }], children: [] });
 
 /* ---- report */
 const counts = results.reduce((a, r) => ({ ...a, [r.outcome]: (a[r.outcome] ?? 0) + 1 }), {});

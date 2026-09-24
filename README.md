@@ -655,9 +655,7 @@ Reports only; add `--apply` to do it. User ids are on the admin Families
 screen. The roster can be re-imported from the school's spreadsheet afterwards.
 
 **Test families.** Three parents — Yogita1/2/3 Test, one child each, one per
-classroom — whose mail all lands in one real inbox (`yogitaj508+test1@…`,
-`+test2`, `+test3`: Gmail treats these as one mailbox, the app as three
-accounts). They exist to exercise every reminder scenario against the live app.
+classroom — whose mail goes to Amazon's SES mailbox simulator (`success+test1@simulator.amazonses.com` and so on) — accepted and discarded, so the checks never land in anyone's inbox. They exist to exercise every reminder scenario against the live app.
 `npm run deploy` seeds them after every deploy, through the real admin API,
 and checks the dashboard sees one unbooked family per classroom — so it doubles
 as a smoke test of sign-in, import and overview. Idempotent. Before go-live:
