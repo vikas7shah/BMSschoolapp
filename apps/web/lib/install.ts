@@ -23,6 +23,8 @@ export interface InstallState {
   canPrompt: boolean;
   /** iPhone/iPad Safari: instructions are the only option. */
   needsManualIOS: boolean;
+  /** Android where the browser offers no prompt: point at its menu instead. */
+  needsManualAndroid: boolean;
   prompt: () => Promise<void>;
 }
 
@@ -30,6 +32,7 @@ export function useInstall(): InstallState {
   const [event, setEvent] = useState<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [ios, setIos] = useState(false);
+  const [android, setAndroid] = useState(false);
 
   useEffect(() => {
     const standalone = window.matchMedia('(display-mode: standalone)').matches
@@ -41,6 +44,7 @@ export function useInstall(): InstallState {
     const isIOS = /iPad|iPhone|iPod/.test(ua)
       || (ua.includes('Macintosh') && navigator.maxTouchPoints > 1);
     setIos(isIOS);
+    setAndroid(/Android/i.test(ua));
 
     const onPrompt = (e: Event) => {
       e.preventDefault();
@@ -59,6 +63,7 @@ export function useInstall(): InstallState {
     installed,
     canPrompt: !!event && !installed,
     needsManualIOS: ios && !installed,
+    needsManualAndroid: android && !event && !installed,
     prompt: async () => {
       if (!event) return;
       await event.prompt();

@@ -8,7 +8,7 @@ import {
 import { api, type Notification, type OverviewData, type Slot } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
-import { InstallCard } from '@/components/install-card';
+import { InstallPrompt } from '@/components/install-prompt';
 import { Banner, Button, Skeleton, Tile } from '@/components/ui';
 import { Coverage } from '@/components/coverage';
 import { EventList } from '@/components/event-list';
@@ -176,7 +176,7 @@ export default function HomePage() {
         </p>
       )}
 
-      <div className="mt-4"><InstallCard dismissible /></div>
+      <InstallPrompt />
     </Shell>
   );
 }
