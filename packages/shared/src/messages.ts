@@ -1,4 +1,4 @@
-import { formatLong, formatShort, type CivilDate } from './dates.js';
+import { formatLong, formatShort, monthLabel, type CivilDate } from './dates.js';
 import type { NotificationType } from './types.js';
 
 export interface ComposedMessage {
@@ -46,73 +46,74 @@ export function snackTomorrow(c: SnackContext): ComposedMessage {
   };
 }
 
-export function snackNextWeek(c: SnackContext): ComposedMessage {
+/**
+ * Two days out: the only automatic reminder about a family's own day. The
+ * day-before one follows only if they ask for it from here.
+ */
+export function snackSoon(c: SnackContext): ComposedMessage {
   return {
-    type: 'SNACK_NEXT_WEEK',
+    type: 'SNACK_SOON',
     title: `Snack day coming up — ${formatShort(c.date)}`,
-    body: `Heads up: you're bringing ${forChild(c)} to ${c.classroomName} on ${formatLong(c.date)}.`,
-    sms: `${c.schoolName}: Heads up — you're bringing snacks to ${c.classroomName} on `
-      + `${formatShort(c.date)} (dry snack and fruit). Reply STOP to opt out.`,
+    body: `You're bringing ${forChild(c)} to ${c.classroomName} on ${formatLong(c.date)} — a dry `
+      + 'snack and fruit. Want a reminder tomorrow too? Tap here.',
+    sms: `${c.schoolName}: Your snack day for ${c.classroomName} is ${formatShort(c.date)} `
+      + '(dry snack and fruit). Reply STOP to opt out. Remind me tomorrow: ',
     emailSubject: `Coming up: snacks for ${c.classroomName} on ${formatShort(c.date)}`,
-    emailText: `Hi ${c.firstName},\n\nA week's notice: you're signed up to bring snacks — a dry `
-      + `snack and fruit — to ${c.classroomName} on ${formatLong(c.date)}.\n\nIf something has `
-      + `come up, you can still give the day back in the app until two days before, so another `
-      + `family can take it.\n\n— ${c.schoolName}`,
+    emailText: `Hi ${c.firstName},\n\nYour snack day is coming up: you're bringing snacks — a dry `
+      + `snack and fruit — to ${c.classroomName} on ${formatLong(c.date)}.\n\nWould a reminder `
+      + 'tomorrow help? Open the app and tap "Remind me tomorrow" on the day.\n\nIf something has '
+      + 'come up, please contact the school office.\n\n'
+      + `What to bring: {{APP}}/what-to-bring/\n\n— ${c.schoolName}`,
     link: `/snacks?date=${c.date}`,
-    dedupeKey: `SNACK_NEXT_WEEK#${c.userId}#${c.date}`,
+    dedupeKey: `SNACK_SOON#${c.userId}#${c.date}`,
   };
 }
 
-export interface OpenSlotContext {
+export type SignUpKind = 'MONTH_START' | 'FOLLOW_UP' | 'NUDGE';
+
+export interface SignUpContext {
   userId: string;
   firstName: string;
   schoolName: string;
   classroomName: string;
+  /** "2026-10": the month they have no day in. */
+  month: string;
+  /** Snack days still open in that month, from today on. */
   openCount: number;
-  soonestDate: CivilDate;
-  /** Civil date the digest covers, so we send at most one of these per day. */
-  digestDate: CivilDate;
+  /** The office's "Remind them" is keyed by day so it can go again tomorrow. */
+  today: CivilDate;
 }
 
-export function openSlots(c: OpenSlotContext): ComposedMessage {
-  const plural = c.openCount === 1 ? 'day still needs' : 'days still need';
-  const when = `${c.openCount === 1 ? '' : 'starting '}${formatShort(c.soonestDate)}`;
+/**
+ * Asks a family with no day this month to pick one: on the 1st, once more on
+ * the 8th, and whenever the office presses "Remind them".
+ */
+export function signUpReminder(kind: SignUpKind, c: SignUpContext): ComposedMessage {
+  const monthName = monthLabel(c.month).split(' ')[0];
+  const open = `${c.openCount} ${c.openCount === 1 ? 'day is' : 'days are'} still open`;
+  const first = kind === 'MONTH_START';
   return {
-    type: 'SLOT_OPEN',
-    title: `${c.openCount} snack ${c.openCount === 1 ? 'day' : 'days'} open in ${c.classroomName}`,
-    body: `${c.openCount} snack ${plural} a family, ${when}. Can you take one?`,
-    sms: `${c.schoolName}: ${c.openCount} snack ${plural} a family in ${c.classroomName}, ${when}. Reply STOP to opt out. Sign up: `,
-    emailSubject: `${c.openCount} open snack ${c.openCount === 1 ? 'day' : 'days'} in ${c.classroomName}`,
-    emailText: `Hi ${c.firstName},\n\n${c.openCount} upcoming snack ${plural} a family in `
-      + `${c.classroomName}, ${when}.\n\nWhoever signs up brings a dry snack and fruit for the `
-      + `class that morning. If you can help, please claim a day in the app.\n\n— ${c.schoolName}`,
+    type: first ? 'SIGNUP_MONTH_START' : kind === 'FOLLOW_UP' ? 'SIGNUP_FOLLOW_UP' : 'SIGNUP_NUDGE',
+    title: first ? `Pick your ${monthName} snack day` : `Still time to pick a ${monthName} snack day`,
+    body: first
+      ? `${monthName} snack days for ${c.classroomName} are open — please pick one that works for you.`
+      : `You don't have a ${monthName} snack day in ${c.classroomName} yet. ${open} — can you take one?`,
+    sms: `${c.schoolName}: ${first ? `Please pick your ${monthName} snack day` : `You haven't picked a ${monthName} snack day yet`} `
+      + `for ${c.classroomName}. Reply STOP to opt out. Sign up: `,
+    emailSubject: first
+      ? `Pick your ${monthName} snack day for ${c.classroomName}`
+      : `Reminder: pick a ${monthName} snack day for ${c.classroomName}`,
+    emailText: `Hi ${c.firstName},\n\n`
+      + (first
+        ? `${monthName} snack days for ${c.classroomName} are open. Families take turns bringing a dry `
+          + 'snack and fruit for the class — please pick a day that works for you.'
+        : `You don't have a ${monthName} snack day in ${c.classroomName} yet, and ${open}. Families `
+          + 'take turns bringing a dry snack and fruit for the class — please pick one if you can.')
+      + `\n\n— ${c.schoolName}`,
     link: '/snacks',
-    dedupeKey: `SLOT_OPEN#${c.userId}#${c.digestDate}`,
-  };
-}
-
-export interface NeverSignedUpContext {
-  userId: string;
-  firstName: string;
-  schoolName: string;
-  classroomName: string;
-  digestDate: CivilDate;
-}
-
-export function neverSignedUp(c: NeverSignedUpContext): ComposedMessage {
-  return {
-    type: 'NEVER_SIGNED_UP',
-    title: "You haven't signed up for a snack day yet",
-    body: `${c.classroomName} families take turns bringing snacks. You don't have a day booked `
-      + 'yet — please pick one that works for you.',
-    sms: `${c.schoolName}: You haven't signed up for a snack day in ${c.classroomName} yet. `
-      + 'Reply STOP to opt out. Please pick a day: ',
-    emailSubject: `Please pick a snack day for ${c.classroomName}`,
-    emailText: `Hi ${c.firstName},\n\nOur records show you don't have an upcoming snack day booked `
-      + `for ${c.classroomName}. Families take turns bringing a dry snack and fruit for the `
-      + `children.\n\nPlease choose a day that works for you in the app.\n\n— ${c.schoolName}`,
-    link: '/snacks',
-    dedupeKey: `NEVER_SIGNED_UP#${c.userId}#${c.digestDate}`,
+    dedupeKey: kind === 'NUDGE'
+      ? `SIGNUP_NUDGE#${c.userId}#${c.today}`
+      : `SIGNUP_${kind}#${c.userId}#${c.month}`,
   };
 }
 
@@ -121,13 +122,13 @@ export function slotClaimed(c: SnackContext): ComposedMessage {
     type: 'SLOT_CLAIMED',
     title: `You're booked for ${formatShort(c.date)}`,
     body: `You're bringing snacks to ${c.classroomName} on ${formatLong(c.date)} — a dry snack `
-      + "and fruit. We'll remind you the day before.",
+      + "and fruit. We'll remind you two days before.",
     sms: `${c.schoolName}: You're booked to bring snacks to ${c.classroomName} on `
-      + `${formatShort(c.date)} (dry snack and fruit). We'll remind you the day before.`,
+      + `${formatShort(c.date)} (dry snack and fruit). We'll remind you two days before.`,
     emailSubject: `Confirmed: snacks on ${formatShort(c.date)}`,
     emailText: `Hi ${c.firstName},\n\nYou're confirmed to bring snacks to ${c.classroomName} on `
       + `${formatLong(c.date)}.\n\nPlease bring both a dry snack and fruit for the class.\n\n`
-      + `What to bring: {{APP}}/what-to-bring/\n\nWe'll send you a reminder the day before.`
+      + `What to bring: {{APP}}/what-to-bring/\n\nWe'll send you a reminder two days before.`
       + `\n\n— ${c.schoolName}`,
     link: `/snacks?date=${c.date}`,
     dedupeKey: `SLOT_CLAIMED#${c.userId}#${c.date}`,

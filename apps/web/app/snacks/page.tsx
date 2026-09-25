@@ -102,6 +102,21 @@ export default function SnacksPage() {
     }
   };
 
+  const remindTomorrow = async (slot: Slot, on: boolean) => {
+    setBusyDate(slot.date);
+    setError(null);
+    setFlash(null);
+    try {
+      await api.post('/api/snacks/remind-tomorrow', { classroomId: slot.classroomId, date: slot.date, on });
+      setFlash(on ? "We'll remind you tomorrow." : 'No reminder tomorrow.');
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'That did not work. Please try again.');
+    } finally {
+      setBusyDate(null);
+    }
+  };
+
   const children = me?.children ?? [];
   const isParent = children.length > 0;
   const activeChild = isParent
@@ -216,6 +231,7 @@ export default function SnacksPage() {
           forChildName={activeChild?.firstName ?? null}
           onClaim={(slot, childId, switchFrom) => act(slot, 'claim', childId, switchFrom)}
           onRelease={(slot) => act(slot, 'release')}
+          onRemindTomorrow={(slot, on) => void remindTomorrow(slot, on)}
           existingThisMonth={existingFor}
         />
       )}

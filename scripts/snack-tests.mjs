@@ -327,15 +327,15 @@ notRun('D5', 'needs every upcoming day in a room booked — not safe to do on li
   check('G8', n1._ok && n1.families >= 1 && n1.sent >= 1, `remind-now sent to ${n1.sent} of ${n1.families} unbooked families in Classroom 2 (+test2 inbox)`, `${n1.status} ${JSON.stringify(n1)}`);
   const n2 = await A.call('POST', `/api/admin/classrooms/${C2}/nudge`);
   check('G9', n2.status === 409, `second remind-now refused: "${n2.error}"`, `${n2.status}`);
-  // G3: the same nudge through the sweep is deduped this week.
+  // G5: outside the 1st and 8th the sweep has no sign-up reminder for anyone.
   const again = await invokeReminders({ force: true, onlyUserIds: ['01M2GJ9E7VWKXM1CA2CW4DSS7J'] });
-  check('G3/G4', again.sent === 0 || again.reason === 'PAUSED', `sweep for Test2 right after: sent ${again.sent ?? 0} (dedupe holds)`, `sent ${again.sent}`);
-  // G6: booked family gets no open-days nudge.
-  const p1sweep = await invokeReminders({ force: true, dryRun: true });
-  void p1sweep; manual('G6', 'Read the dry-run plan in CloudWatch: no SLOT_OPEN entry for Yogita1 while she holds a day');
-  notRun('G1', "needs a booking exactly tomorrow — Veer's Sep 15 was today; run on a day with one");
-  notRun('G2', 'needs a booking exactly 7 days out');
-  notRun('G5', 'needs a nearly full classroom');
+  const day = Number(new Date().toISOString().slice(8, 10));
+  if (day !== 1 && day !== 8) check('G5', again.sent === 0 || again.reason === 'PAUSED', `sweep for Test2 mid-month: sent ${again.sent ?? 0}`, `sent ${again.sent}`);
+  else notRun('G5', 'today is the 1st or 8th — run on another day');
+  notRun('G1', 'needs a booking exactly 2 days out');
+  notRun('G2', 'needs a Remind me tomorrow tap, then a run the next day');
+  notRun('G4', 'runs only on the 1st');
+  manual('G6', 'Pause across a 1st, resume, run the sweep: nothing made up');
   manual('G10', 'Switch Email off under You, then a test send');
   notRun('G11', 'toll-free number still under carrier review');
 }

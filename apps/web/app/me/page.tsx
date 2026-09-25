@@ -96,7 +96,7 @@ export default function MePage() {
       <Card>
         <h2 className="font-semibold text-ink">Email &amp; reminders</h2>
         <p className="mt-1 text-sm text-muted">
-          We&apos;ll tell you the day before your snack day, and when days still need a family.
+          We&apos;ll remind you 2 days before your snack day, and at the start of the month if you haven&apos;t picked one.
         </p>
 
         <ul className="mt-4 divide-y divide-line">

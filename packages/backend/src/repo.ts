@@ -470,9 +470,47 @@ export async function releaseSlot(args: {
       Key: { classroomId: args.classroomId, sk: slotSk(args.date) },
       UpdateExpression:
         'SET #s = :open, updatedAt = :t REMOVE claimedByUserId, claimedByName, claimedAt, '
-        + 'claimedForChildName, claimedForChildId, note',
+        + 'claimedForChildName, claimedForChildId, note, remindTomorrowUserIds',
       ConditionExpression: condition,
       ExpressionAttributeNames: names,
+      ExpressionAttributeValues: values,
+      ReturnValues: 'ALL_NEW',
+    }));
+    return r.Attributes as SnackSlot;
+  } catch (e) {
+    if ((e as { name?: string }).name === 'ConditionalCheckFailedException') {
+      const cur = await ddb.send(new GetCommand({
+        TableName: T.slots,
+        Key: { classroomId: args.classroomId, sk: slotSk(args.date) },
+      }));
+      return cur.Item ? 'FORBIDDEN' : 'NOT_FOUND';
+    }
+    throw e;
+  }
+}
+
+/**
+ * "Remind me tomorrow" on, or off again, for one parent of the family holding
+ * the day. Refused unless the day is still claimed by that family.
+ */
+export async function setRemindTomorrow(args: {
+  classroomId: string; date: string; userId: string; childIds: Iterable<string>; on: boolean;
+}): Promise<SnackSlot | 'FORBIDDEN' | 'NOT_FOUND'> {
+  const kids = [...args.childIds];
+  const values: Record<string, unknown> = {
+    ':claimed': 'CLAIMED', ':u': args.userId, ':me': new Set([args.userId]), ':t': nowIso(),
+  };
+  kids.forEach((id, i) => { values[`:k${i}`] = id; });
+  const mine = kids.length
+    ? `(claimedByUserId = :u OR claimedForChildId IN (${kids.map((_, i) => `:k${i}`).join(', ')}))`
+    : 'claimedByUserId = :u';
+  try {
+    const r = await ddb.send(new UpdateCommand({
+      TableName: T.slots,
+      Key: { classroomId: args.classroomId, sk: slotSk(args.date) },
+      UpdateExpression: `${args.on ? 'ADD' : 'DELETE'} remindTomorrowUserIds :me SET updatedAt = :t`,
+      ConditionExpression: `attribute_exists(sk) AND #s = :claimed AND ${mine}`,
+      ExpressionAttributeNames: { '#s': 'status' },
       ExpressionAttributeValues: values,
       ReturnValues: 'ALL_NEW',
     }));

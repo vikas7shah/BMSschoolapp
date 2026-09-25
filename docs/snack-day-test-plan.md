@@ -92,14 +92,14 @@ Use the admin "Remind them" and the test send (`--only`) so nothing waits for 5 
 
 | # | Scenario | Steps | Expected |
 |---|---|---|---|
-| G1 | The day before | P1 has a day tomorrow; run the sweep | Email "Tomorrow: you're bringing snacks…" from Burlington Montessori School, in the inbox (not spam); no "release your day" line |
-| G2 | A week before | P1 has a day in 7 days; run the sweep | "Coming up…" email, with the two-day notice line |
+| G1 | Two days before | P1 has a day in 2 days; run the sweep | "Snack day coming up…" email asking whether a reminder tomorrow would help; the app link opens that day |
+| G2 | Remind me tomorrow | P1 opens that day and taps Remind me tomorrow; the next day, run the sweep | "Tomorrow: you're bringing snacks…" email. Without the tap, nothing the day before |
 | G3 | Not twice | run the sweep again | Nothing sent (dedupe) |
-| G4 | Open-days nudge, weekly | P1 has nothing booked; run the sweep twice in one week | One "N snack days still need a family" email, not two |
-| G5 | Urgent gap goes daily | Classroom 1 fully booked except one day 2 days out; P1 unbooked; run two days running | A nudge each day |
-| G6 | Booked families are left alone | P1 has a day; run the sweep | No open-days nudge to P1 |
-| G7 | Pause switch | Admin → Set-up → Pause; run the sweep | "PAUSED", nothing sent; sign-in codes still arrive |
-| G8 | Remind now | Admin → Home → Classroom 1 → Remind them | Email to every unbooked family in Classroom 1 only — even while paused, even if the weekly nudge already went |
+| G4 | 1st of the month | On the 1st, P1 has nothing booked that month; run the sweep | "Pick your October snack day" to P1; nothing to families who already have a day |
+| G5 | 8th, once | On the 8th, P1 still has nothing; run the sweep. Run again on the 9th | One follow-up on the 8th; nothing on the 9th or any other day |
+| G6 | Pause over the 1st | Pause on the 30th, resume on the 3rd; run the sweep | Nothing is made up — the office uses Remind them instead |
+| G7 | Pause switch | Admin → Set-up → Pause; run the sweep; P1 books a day | "PAUSED", nothing sent; no booking confirmation and nothing in Messages; sign-in codes still arrive |
+| G8 | Remind now | Admin → Home → Classroom 1 → Remind them | Sign-up email to every unbooked family in Classroom 1 only — even while paused |
 | G9 | Remind now guard | tap Remind them again the same day | "Reminded today" — refused |
 | G10 | Channel choice | P1 switches Email off under You; run the sweep | No email; the in-app message still appears |
 | G11 | Text (once SMS is on) | P1 switches Text on; run the sweep | SMS to +test1's number with the STOP line; email too if still on |

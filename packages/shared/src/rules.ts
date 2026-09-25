@@ -42,3 +42,18 @@ export const RELEASE_BLOCK_MESSAGE: Record<ReleaseBlock, string> = {
     'Every snack day is taken, so the calendar is locked. Please contact the '
     + 'school office to arrange a swap.',
 };
+
+/** The "your snack day is coming up" reminder goes this many days ahead. */
+export const SOON_REMINDER_DAYS = 2;
+
+/** Day of the month for the one follow-up to families still without a day. */
+export const SIGNUP_FOLLOW_UP_DAY = 8;
+
+/**
+ * "Remind me tomorrow" is offered on the day the two-day reminder lands, and
+ * only then: a day earlier "tomorrow" isn't the day before, a day later it is
+ * the snack day itself.
+ */
+export function canAskRemindTomorrow(date: CivilDate, today: CivilDate): boolean {
+  return daysBetween(today, date) === SOON_REMINDER_DAYS;
+}

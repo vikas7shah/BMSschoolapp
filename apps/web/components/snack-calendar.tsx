@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import {
-  addDays, closureDates, closureReason, formatLong, formatShort, releaseBlockedReason,
+  addDays, canAskRemindTomorrow, closureDates, closureReason, formatLong, formatShort, releaseBlockedReason,
   RELEASE_BLOCK_MESSAGE, SCHOOL_YEAR, type CivilDate,
 } from '@bms/shared';
 import { monthLabel, monthOf, monthWeeks } from '@/lib/calendar';
@@ -38,6 +38,8 @@ export interface CalendarProps {
   busyDate: string | null;
   onClaim: (slot: Slot, childId?: string, switchFrom?: string) => void;
   onRelease: (slot: Slot) => void;
+  /** "Remind me tomorrow" on or off, from the two-day reminder. */
+  onRemindTomorrow: (slot: Slot, on: boolean) => void;
   /** The day the child already holds in this date's month, if any. */
   existingThisMonth: (date: CivilDate) => CivilDate | null;
   /**
@@ -56,7 +58,7 @@ export interface CalendarProps {
 }
 
 export function SnackCalendar({
-  today, slots, classroomId, busyDate, onClaim, onRelease, childOptions, canClaim, initialDate,
+  today, slots, classroomId, busyDate, onClaim, onRelease, onRemindTomorrow, childOptions, canClaim, initialDate,
   classroomFull, isAdmin, forChildName, existingThisMonth,
 }: CalendarProps) {
   const [month, setMonth] = useState(clampMonth(monthOf(initialDate ?? today)));
@@ -174,6 +176,7 @@ export function SnackCalendar({
           onClose={() => setSelected(null)}
           onClaim={(s, switchFrom) => onClaim(s, childId ?? undefined, switchFrom)}
           onRelease={onRelease}
+          onRemindTomorrow={onRemindTomorrow}
           classroomFull={classroomFull}
           isAdmin={isAdmin}
           forChildName={forChildName ?? null}
@@ -186,7 +189,7 @@ export function SnackCalendar({
 
 function DayDetail({
   date, today, slot, busy, canClaim, childOptions, childId, onPickChild, onClose, onClaim, onRelease,
-  classroomFull, isAdmin, forChildName, switchFrom,
+  onRemindTomorrow, classroomFull, isAdmin, forChildName, switchFrom,
 }: {
   date: CivilDate; today: CivilDate; slot?: Slot; busy: boolean; canClaim: boolean;
   forChildName: string | null;
@@ -197,6 +200,7 @@ function DayDetail({
   onClose: () => void;
   onClaim: (slot: Slot, switchFrom?: string) => void;
   onRelease: (slot: Slot) => void;
+  onRemindTomorrow: (slot: Slot, on: boolean) => void;
   classroomFull: boolean;
   isAdmin: boolean;
 }) {
@@ -253,6 +257,29 @@ function DayDetail({
                   <path d="m9 18 6-6-6-6" />
                 </svg>
               </a>
+              {canAskRemindTomorrow(date, today) && (
+                slot.remindTomorrow ? (
+                  <div className="mb-3 flex items-center justify-between gap-3 rounded-xl bg-sage-soft px-3.5 py-3">
+                    <p className="flex items-center gap-2 text-sm font-medium text-sage-dark">
+                      <BellIcon />
+                      We&apos;ll remind you tomorrow.
+                    </p>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => onRemindTomorrow(slot, false)}
+                      className="text-sm text-sage-dark/70 underline underline-offset-4 disabled:opacity-50"
+                    >
+                      Undo
+                    </button>
+                  </div>
+                ) : (
+                  <Button variant="secondary" loading={busy} className="mb-3 w-full" onClick={() => onRemindTomorrow(slot, true)}>
+                    <BellIcon />
+                    Remind me tomorrow
+                  </Button>
+                )
+              )}
               {blocked ? (
                 <p className="rounded-xl bg-black/5 px-3.5 py-3 text-sm leading-relaxed text-muted">
                   {RELEASE_BLOCK_MESSAGE[blocked]}
@@ -355,6 +382,14 @@ function Chevron({ dir }: { dir: 'left' | 'right' }) {
   return (
     <svg viewBox="0 0 24 24" className="size-5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
       <path d={dir === 'left' ? 'm15 18-6-6 6-6' : 'm9 18 6-6-6-6'} />
+    </svg>
+  );
+}
+
+function BellIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="size-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" /><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
     </svg>
   );
 }

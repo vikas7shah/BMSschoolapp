@@ -35,9 +35,16 @@ export interface School {
   timezone: string;
   /** Hour (0-23, school-local) at which the daily reminder sweep sends. */
   reminderHour: number;
-  /** While true the sweep sends nothing — for loading a roster before go-live. */
+  /**
+   * The master switch. While true nothing automatic goes out or lands in the
+   * Messages list — not the sweep, not a booking confirmation. Only sign-in
+   * codes and the office's "Remind them" still go.
+   */
   remindersPaused?: boolean;
-  /** While true the "days still need a family" nudges stay off; a family's own day reminders still go. */
+  /**
+   * While true the sign-up reminders (1st and 8th of the month) stay off; a
+   * family's own snack-day reminders still go. Named for what it once paused.
+   */
   openSlotNudgesPaused?: boolean;
   createdAt: string;
 }
@@ -144,11 +151,21 @@ export interface SnackSlot {
   claimedForChildId?: string;
   claimedAt?: string;
   note?: string;
+  /**
+   * Parents who tapped "Remind me tomorrow" on the two-day reminder; each gets
+   * the day-before reminder. A DynamoDB string set, so a Set when read back.
+   */
+  remindTomorrowUserIds?: Iterable<string>;
   updatedAt: string;
 }
 
 export type NotificationType =
+  | 'SNACK_SOON'
   | 'SNACK_TOMORROW'
+  | 'SIGNUP_MONTH_START'
+  | 'SIGNUP_FOLLOW_UP'
+  | 'SIGNUP_NUDGE'
+  // No longer sent; kept so older Messages still type-check.
   | 'SNACK_NEXT_WEEK'
   | 'SLOT_OPEN'
   | 'NEVER_SIGNED_UP'

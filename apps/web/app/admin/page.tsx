@@ -296,7 +296,7 @@ function RemindersCard({ onChanged, onError }: {
       setSw(r);
       onChanged(key === 'remindersPaused'
         ? (r.remindersPaused ? 'All reminders paused. Nothing will be sent until you resume.' : 'Reminders are on.')
-        : (r.openSlotNudgesPaused ? '"Days still need a family" nudges paused.' : '"Days still need a family" nudges are on.'));
+        : (r.openSlotNudgesPaused ? 'Sign-up reminders paused.' : 'Sign-up reminders are on.'));
     } catch (err) {
       onError(err instanceof ApiError ? err.message : 'Could not change that.');
     } finally { setBusy(null); }
@@ -332,14 +332,14 @@ function RemindersCard({ onChanged, onError }: {
         <Row
           k="remindersPaused"
           title="All reminders"
-          on="On — families hear the day before their snack day, a week before, and when days still need someone."
-          off="Paused — no emails or texts go out, whatever the calendar says. Sign-in codes still work."
+          on="On — families hear 2 days before their snack day, the day before if they ask, and on the 1st and 8th if they have no day that month."
+          off="Paused — nothing goes out, not even booking confirmations, and nothing is caught up when you resume. Sign-in codes and Remind them still work."
         />
         <Row
           k="openSlotNudgesPaused"
-          title="“Days still need a family” nudges"
-          on="On — families with no day booked this month are nudged about open days."
-          off="Paused — nobody is nudged about open days. Families still get reminders for the day they hold. The Remind them button still works."
+          title="Sign-up reminders"
+          on="On — on the 1st, and once more on the 8th, families with no day that month are asked to pick one."
+          off="Paused — no 1st or 8th reminders. Families still hear about the day they hold. Remind them still works."
         />
       </div>
     </Card>

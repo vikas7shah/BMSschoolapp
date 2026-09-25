@@ -75,6 +75,8 @@ export interface Slot {
   claimedForChildId?: string;
   note?: string;
   isMine: boolean;
+  /** This parent asked for the day-before reminder. */
+  remindTomorrow?: boolean;
   classroomName?: string;
 }
 

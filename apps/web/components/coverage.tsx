@@ -108,8 +108,8 @@ function RoomCard({ room, tile, onChanged, onError }: {
       {confirming && (
         <div className="mt-3 rounded-xl bg-sage-soft p-3 text-sm text-sage-dark">
           <p>
-            Send the open-days reminder now to the {n} {n === 1 ? 'family' : 'families'} in {room.name} with
-            nothing booked? It goes even while reminders are paused.
+            Send a sign-up reminder now to the {n} {n === 1 ? 'family' : 'families'} in {room.name} with
+            nothing booked this month? It goes even while reminders are paused.
           </p>
           <div className="mt-2 flex gap-2">
             <Button size="sm" loading={busy} onClick={() => void remind()}>Send now</Button>

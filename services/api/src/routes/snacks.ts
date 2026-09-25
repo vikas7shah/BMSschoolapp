@@ -1,11 +1,12 @@
 import { Hono } from 'hono';
 import {
-  addDays, claimSlotSchema, formatShort, releaseBlockedReason, releaseSlotSchema, slotClaimed,
-  todayIn, RELEASE_BLOCK_MESSAGE, RELEASE_NOTICE_DAYS, SCHOOL_YEAR, type Child, type SnackSlot,
+  addDays, canAskRemindTomorrow, claimSlotSchema, formatShort, releaseBlockedReason, releaseSlotSchema,
+  remindTomorrowSchema, slotClaimed, todayIn, RELEASE_BLOCK_MESSAGE, RELEASE_NOTICE_DAYS, SCHOOL_YEAR,
+  type Child, type SnackSlot,
 } from '@bms/shared';
 import {
   childrenForGuardian, claimSlot, classroomHasOpenDay, deliver, getClassroom, getSchool,
-  listClassrooms, listSlots, releaseSlot, slotsForUser,
+  listClassrooms, listSlots, releaseSlot, setRemindTomorrow, slotsForUser,
 } from '@bms/backend';
 import type { Vars } from '../app.js';
 
@@ -46,6 +47,8 @@ function publicSlot(slot: SnackSlot, viewer: { userId: string; childIds: Set<str
     claimedForChildId: slot.claimedForChildId,
     note: slot.note,
     isMine: isFamilyDay(slot, viewer),
+    /** This viewer asked for the day-before reminder. */
+    remindTomorrow: [...(slot.remindTomorrowUserIds ?? [])].includes(viewer.userId),
   };
 }
 
@@ -213,15 +216,18 @@ route.post('/api/snacks/claim', async (c) => {
   }
 
   // Confirmation is forced past the dedupe table: the parent asked for this.
-  const classroom = await getClassroom(classroomId);
-  await deliver(user, slotClaimed({
-    userId: user.userId,
-    firstName: user.firstName,
-    schoolName: school?.name ?? 'School',
-    classroomName: classroom?.name ?? 'your classroom',
-    date,
-    childName: child?.firstName,
-  }), { force: true }).catch((err) => console.error('confirmation failed', err));
+  // While the school has reminders paused, nothing goes out — not even this.
+  if (!school?.remindersPaused) {
+    const classroom = await getClassroom(classroomId);
+    await deliver(user, slotClaimed({
+      userId: user.userId,
+      firstName: user.firstName,
+      schoolName: school?.name ?? 'School',
+      classroomName: classroom?.name ?? 'your classroom',
+      date,
+      childName: child?.firstName,
+    }), { force: true }).catch((err) => console.error('confirmation failed', err));
+  }
 
   return c.json({ slot: publicSlot(result, await viewerOf(user)) });
 });
@@ -257,6 +263,27 @@ route.post('/api/snacks/release', async (c) => {
 
   if (result === 'NOT_FOUND') return c.json({ error: 'That day is not on the calendar' }, 404);
   if (result === 'FORBIDDEN') return c.json({ error: 'That slot belongs to another family' }, 403);
+
+  return c.json({ slot: publicSlot(result, viewer) });
+});
+
+/** "Remind me tomorrow" from the two-day reminder, or undoing it. */
+route.post('/api/snacks/remind-tomorrow', async (c) => {
+  const user = c.get('user');
+  const parsed = remindTomorrowSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: 'Invalid request' }, 400);
+  const { classroomId, date, on } = parsed.data;
+
+  const school = await getSchool(user.schoolId);
+  const today = todayIn(school?.timezone ?? 'America/New_York');
+  if (on && !canAskRemindTomorrow(date, today)) {
+    return c.json({ error: 'A reminder for tomorrow can be set two days before your snack day.' }, 400);
+  }
+
+  const viewer = await viewerOf(user);
+  const result = await setRemindTomorrow({ classroomId, date, userId: user.userId, childIds: viewer.childIds, on });
+  if (result === 'NOT_FOUND') return c.json({ error: 'That day is not on the calendar' }, 404);
+  if (result === 'FORBIDDEN') return c.json({ error: 'That day is not your family\'s' }, 403);
 
   return c.json({ slot: publicSlot(result, viewer) });
 });

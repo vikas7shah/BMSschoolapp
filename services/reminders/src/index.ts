@@ -1,5 +1,5 @@
 import {
-  DEFAULT_REMINDER_CONFIG, SCHOOL_YEAR, addDays, hourIn, planReminders, todayIn,
+  SCHOOL_YEAR, SOON_REMINDER_DAYS, addDays, hourIn, monthOf, planReminders, todayIn,
   type PlannerParent,
 } from '@bms/shared';
 import {
@@ -12,9 +12,9 @@ interface InvokeEvent {
   force?: boolean;
   /** Log what would be sent without sending anything. */
   dryRun?: boolean;
-  /** Send only to these users — a test send, or the office's "remind now". */
+  /** Send only to these users — a test send from `npm run reminders:run -- --only`. */
   onlyUserIds?: string[];
-  /** Send even if the same message went out this week — for "remind now". */
+  /** Send even if the same message already went out. */
   skipDedupe?: boolean;
 }
 
@@ -43,14 +43,11 @@ export const handler = async (event: InvokeEvent = {}) => {
     return { sent: 0, skipped: 0, reason: 'NOT_THE_HOUR', hour, wanted: school.reminderHour };
   }
 
-  const cfg = DEFAULT_REMINDER_CONFIG;
-  const horizon = Math.max(cfg.nextWeekDays, cfg.openSlotHorizonDays) + 1;
-
-  // Slots through the end of the month after the horizon: "has this family
-  // booked this month?" must see the whole month, not just the next few days.
+  // From the 1st, so a day booked earlier this month still counts as booked,
+  // through the end of the month the two-day reminder lands in.
   const monthEnd = (d: string) => new Date(Date.UTC(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0)).toISOString().slice(0, 10);
   const [slots, users, children, links, classrooms] = await Promise.all([
-    listSlotsBySchool(school.schoolId, today, monthEnd(addDays(today, horizon))),
+    listSlotsBySchool(school.schoolId, `${monthOf(today)}-01`, monthEnd(addDays(today, SOON_REMINDER_DAYS))),
     listUsers(school.schoolId),
     listChildren(school.schoolId),
     listAllGuardianships(),
@@ -89,11 +86,9 @@ export const handler = async (event: InvokeEvent = {}) => {
     classroomNames: Object.fromEntries(classrooms.map((cl) => [cl.classroomId, cl.name])),
     slots,
     parents,
-    config: cfg,
   }).filter((p) => !only || only.has(p.userId))
-    // Open-day nudges can be held back on their own; the office's "remind
-    // now" names its recipients and goes regardless.
-    .filter((p) => !(school.openSlotNudgesPaused && !only && (p.message.type === 'SLOT_OPEN' || p.message.type === 'NEVER_SIGNED_UP')));
+    // The 1st and 8th sign-up reminders can be held back on their own.
+    .filter((p) => !(school.openSlotNudgesPaused && !only && p.message.type.startsWith('SIGNUP_')));
 
   if (event.dryRun) {
     console.log(JSON.stringify({

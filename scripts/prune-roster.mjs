@@ -112,7 +112,7 @@ for (const s of reopenSlots) {
   await ddb.send(new UpdateCommand({
     TableName: T.slots,
     Key: { classroomId: s.classroomId, sk: s.sk },
-    UpdateExpression: 'SET #st = :open, updatedAt = :now REMOVE claimedByUserId, claimedByName, claimedAt, claimedForChildName, claimedForChildId',
+    UpdateExpression: 'SET #st = :open, updatedAt = :now REMOVE claimedByUserId, claimedByName, claimedAt, claimedForChildName, claimedForChildId, remindTomorrowUserIds',
     ExpressionAttributeNames: { '#st': 'status' },
     ExpressionAttributeValues: { ':open': 'OPEN', ':now': new Date().toISOString() },
   }));

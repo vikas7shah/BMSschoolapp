@@ -1,13 +1,13 @@
 import { Hono } from 'hono';
 import {
   createClassroomSchema, dateRange, generateSlotsSchema, importRosterSchema, inviteParentSchema,
-  monthOf, todayIn,
+  monthOf, signUpReminder, todayIn,
   type Child, type ImportResult,
 } from '@bms/shared';
 import {
   childrenForGuardian, coverageByMonth, createChild, createClassroom, createUser, deleteUser, endOfNextMonth,
-  getClassroom, getSchool, getUserByEmail, getUserByPhone, invokeReminders, linkGuardian,
-  listAllGuardianships, listChildren, listClassrooms, listSlotsBySchool, listUsers, markNudged,
+  deliver, getClassroom, getSchool, getUserByEmail, getUserByPhone, linkGuardian,
+  listAllGuardianships, listChildren, listClassrooms, listSlots, listSlotsBySchool, listUsers, markNudged,
   publishRange, setReminderSwitches, unbookedParents, updateUser,
 } from '@bms/backend';
 import { createCognitoUser } from '../cognito.js';
@@ -29,9 +29,10 @@ route.get('/api/admin/school', async (c) => {
 });
 
 /**
- * Two switches. `remindersPaused` is the go-live switch: nothing at all goes
- * out. `openSlotNudgesPaused` keeps only the "days still need a family"
- * nudges off — a family's own day-before and week-before reminders still go.
+ * Two switches. `remindersPaused` is the master switch: nothing automatic goes
+ * out, confirmations included; only sign-in codes and "Remind them" still do.
+ * `openSlotNudgesPaused` keeps just the 1st and 8th sign-up reminders off — a
+ * family's own snack-day reminders still go.
  */
 route.patch('/api/admin/school', async (c) => {
   const body = await c.req.json().catch(() => ({}));
@@ -487,10 +488,9 @@ route.get('/api/admin/overview', async (c) => {
 });
 
 /**
- * "Remind now": the open-days nudge to every family in the room with nothing
- * booked, sent through the reminder job so the wording and channels are the
- * ones parents already know. Bypasses the pause and the weekly dedupe — the
- * office is asking for it — and is limited to once a day per classroom.
+ * "Remind them": the sign-up reminder to every family in the room with nothing
+ * booked this month, sent straight away. The office's forced send: it goes
+ * even while reminders are paused, and is limited to once a day per classroom.
  */
 route.post('/api/admin/classrooms/:classroomId/nudge', async (c) => {
   const admin = c.get('user');
@@ -506,10 +506,24 @@ route.post('/api/admin/classrooms/:classroomId/nudge', async (c) => {
   const families = await unbookedParents(admin.schoolId, classroom, today);
   if (!families.length) return c.json({ sent: 0, families: 0 });
 
-  const r = await invokeReminders({ force: true, skipDedupe: true, onlyUserIds: families.map((u) => u.userId) });
+  const month = monthOf(today);
+  const openCount = (await listSlots(classroom.classroomId, today, `${month}-31`))
+    .filter((s) => s.status === 'OPEN').length;
+  const results = await Promise.allSettled(families.map((u) => deliver(u, signUpReminder('NUDGE', {
+    userId: u.userId,
+    firstName: u.firstName,
+    schoolName: school?.name ?? 'School',
+    classroomName: classroom.name,
+    month,
+    openCount,
+    today,
+  }), { force: true })));
+  const sent = results.filter((r) => r.status === 'fulfilled' && r.value).length;
+  for (const r of results) if (r.status === 'rejected') console.error('Remind-now delivery failed', r.reason);
+
   await markNudged(classroom.classroomId, today);
-  console.log(`Remind-now for ${classroom.name} by ${admin.userId}: ${r.sent} sent to ${families.length} families`);
-  return c.json({ sent: r.sent, families: families.length });
+  console.log(`Remind-now for ${classroom.name} by ${admin.userId}: ${sent} sent to ${families.length} families`);
+  return c.json({ sent, families: families.length });
 });
 
 /** A child with two guardians appears once, not twice. */

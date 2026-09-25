@@ -98,6 +98,8 @@ export const releaseSlotSchema = z.object({
   date: civilDateSchema,
 });
 
+export const remindTomorrowSchema = releaseSlotSchema.extend({ on: z.boolean() });
+
 export const updatePrefsSchema = z.object({
   prefs: channelPrefsSchema.partial(),
   email: z.string().email().optional().or(z.literal('')),
