@@ -3,7 +3,7 @@
 import { useSession } from '@/lib/session';
 
 /**
- * Slim bar above every signed-in page: who runs the app on the left, the
+ * Slim bar above every signed-in page: the app's name on the left, the
  * sign-out control on the right. Sits in the page flow rather than fixed, so
  * it can never overlap a long page title on a narrow screen.
  */
@@ -14,7 +14,7 @@ export function TopBar({ wide }: { wide?: boolean }) {
   return (
     <div className={`mx-auto flex w-full items-center justify-between px-5 pt-3 ${wide ? 'max-w-5xl' : 'max-w-lg'}`}>
       <span className="text-xs font-semibold tracking-tight text-muted">
-        Home Operations Hub
+        BMS Families
       </span>
       <button
         type="button"

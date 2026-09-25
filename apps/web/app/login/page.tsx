@@ -157,10 +157,8 @@ export default function LoginPage() {
 
       <TestSignIn />
 
-      {/* The company behind the app, on the page a reviewer lands on. */}
-      <footer className="mt-10 text-center text-[11px] leading-relaxed text-muted/80">
-        A Home Operations Hub app for Burlington Montessori School · Galaxy Holdings LLC, Woburn, MA<br />
-        <a href="/sms-terms/" className="underline underline-offset-2">Text message terms</a> · <a href="/privacy/" className="underline underline-offset-2">Privacy</a> · <a href="mailto:hello@homeoperationshub.com" className="underline underline-offset-2">hello@homeoperationshub.com</a>
+      <footer className="mt-10 text-center text-[11px] text-muted/80">
+        <a href="/sms-terms/" className="underline underline-offset-2">Text message terms</a> · <a href="/privacy/" className="underline underline-offset-2">Privacy</a>
       </footer>
     </main>
   );

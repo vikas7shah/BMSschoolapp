@@ -110,7 +110,7 @@ const A = new Session('A'); await A.signIn();
 {
   const { parents } = await A.call('GET', '/api/admin/parents');
   const y1 = parents.find((p) => p.email === SEATS.P1.identifier);
-  if (!y1) throw new Error('Yogita1 is not on the roster');
+  if (!y1) throw new Error('Sample Parent (test family 1) is not on the roster');
   SEATS.P1.username = y1.userId;
 }
 const P1 = new Session('P1'); await P1.signIn();
@@ -313,7 +313,7 @@ notRun('D5', 'needs every upcoming day in a room booked — not safe to do on li
   manual('F4', 'A family whose only day is months away — needs a booking left in place; check the wording on the phone');
   manual('F5', 'Four days across two months on one family');
   const m3 = await P2b.call('GET', '/api/snacks/mine'); void m3;
-  manual('F6', 'A family with nothing booked (Yogita2 has none): check "No day booked yet" on the phone');
+  manual('F6', 'A family with nothing booked (Test2 has none): check "No day booked yet" on the phone');
 }
 
 /* ---- G. Reminders (sends real email to the +test inboxes) */
@@ -322,14 +322,14 @@ notRun('D5', 'needs every upcoming day in a room booked — not safe to do on li
   const wasPaused = school.remindersPaused;
   const dry = await invokeReminders({ force: true, dryRun: true });
   check('G7', wasPaused ? dry.reason === 'PAUSED' : true, wasPaused ? 'sweep reports PAUSED while paused' : 'reminders not paused (G7 needs the pause on)', `dry run: ${JSON.stringify(dry)}`);
-  // G8/G9: remind Classroom 2 now (Yogita2 is unbooked there).
+  // G8/G9: remind Classroom 2 now (Test2 is unbooked there).
   const n1 = await A.call('POST', `/api/admin/classrooms/${C2}/nudge`);
   check('G8', n1._ok && n1.families >= 1 && n1.sent >= 1, `remind-now sent to ${n1.sent} of ${n1.families} unbooked families in Classroom 2 (+test2 inbox)`, `${n1.status} ${JSON.stringify(n1)}`);
   const n2 = await A.call('POST', `/api/admin/classrooms/${C2}/nudge`);
   check('G9', n2.status === 409, `second remind-now refused: "${n2.error}"`, `${n2.status}`);
   // G3: the same nudge through the sweep is deduped this week.
   const again = await invokeReminders({ force: true, onlyUserIds: ['01M2GJ9E7VWKXM1CA2CW4DSS7J'] });
-  check('G3/G4', again.sent === 0 || again.reason === 'PAUSED', `sweep for Yogita2 right after: sent ${again.sent ?? 0} (dedupe holds)`, `sent ${again.sent}`);
+  check('G3/G4', again.sent === 0 || again.reason === 'PAUSED', `sweep for Test2 right after: sent ${again.sent ?? 0} (dedupe holds)`, `sent ${again.sent}`);
   // G6: booked family gets no open-days nudge.
   const p1sweep = await invokeReminders({ force: true, dryRun: true });
   void p1sweep; manual('G6', 'Read the dry-run plan in CloudWatch: no SLOT_OPEN entry for Yogita1 while she holds a day');
@@ -346,15 +346,15 @@ notRun('D5', 'needs every upcoming day in a room booked — not safe to do on li
   const y3 = parents.parents.find((p) => p.email === 'success+test3@simulator.amazonses.com');
   const k3 = y3?.children[0];
   if (y3 && k3) {
-    // Book a day for Yogita3 first so the removal has something to reopen.
+    // Book a day for Test3 first so the removal has something to reopen.
     const P3 = new Session('P3'); SEATS.P3 = { identifier: 'success+test3@simulator.amazonses.com', username: y3.userId }; await P3.signIn();
     const b3 = await board(P3, C3);
     const d = openDays(b3, C3, nextMonthFirst, addDays(nextMonthFirst, 40))[8];
     await P3.call('POST', '/api/snacks/claim', { classroomId: C3, date: d });
     const r = await A.call('DELETE', `/api/admin/children/${k3.childId}`);
-    check('H2', r._ok && r.parentsRemoved === 1 && r.daysReopened === 1, `removing Testchild3 reopened ${d} and removed Yogita3`, `${r.status} ${JSON.stringify(r)}`);
+    check('H2', r._ok && r.parentsRemoved === 1 && r.daysReopened === 1, `removing Testchild3 reopened ${d} and removed Test3`, `${r.status} ${JSON.stringify(r)}`);
     manual('H1', 'Same cascade from the parent side — covered by the deploy smoke test each day');
-  } else notRun('H2', 'Yogita3 not present');
+  } else notRun('H2', 'Test3 not present');
   manual('H3', 'Removing one of two siblings — would remove a real child (Vansh); do only if you want to');
   manual('H4', 'Needs a code change (a closure added) — do with the next deploy');
   manual('H5', 'Needs a roster import with a new classroom');
@@ -378,8 +378,8 @@ for (const c of cleanup) {
   if (!c.date) continue;
   await A.call('POST', '/api/snacks/release', { classroomId: c.classroomId, date: c.date });
 }
-// Put Yogita3 back.
-await A.call('POST', '/api/admin/parents/import', { families: [{ firstName: 'Yogita3', lastName: 'Test', email: 'success+test3@simulator.amazonses.com', children: [{ firstName: 'Testchild3', lastName: 'Test', classroomId: C3 }] }], children: [] });
+// Put Test3 back.
+await A.call('POST', '/api/admin/parents/import', { families: [{ firstName: 'Test3', lastName: 'Test', email: 'success+test3@simulator.amazonses.com', children: [{ firstName: 'Testchild3', lastName: 'Test', classroomId: C3 }] }], children: [] });
 
 /* ---- report */
 const counts = results.reduce((a, r) => ({ ...a, [r.outcome]: (a[r.outcome] ?? 0) + 1 }), {});

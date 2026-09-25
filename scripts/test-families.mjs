@@ -21,8 +21,11 @@ import { REGION, STACK, stackOutputs } from './lib/stack.mjs';
 // inbox. +labels give each family its own address.
 const INBOX = 'success@simulator.amazonses.com';
 const [local, domain] = INBOX.split('@');
+// Family 1 doubles as the account in the SMS opt-in screenshots, so it has a
+// neutral name and a fictional 555 number (reserved, never a real line).
 const FAMILIES = [1, 2, 3].map((n) => ({
-  firstName: `Yogita${n}`, lastName: 'Test', email: `${local}+test${n}@${domain}`,
+  firstName: n === 1 ? 'Sample' : `Test${n}`, lastName: 'Parent', email: `${local}+test${n}@${domain}`,
+  ...(n === 1 ? { phone: '+16175550101' } : {}),
   child: { firstName: `Testchild${n}`, lastName: 'Test' },
 }));
 
@@ -110,7 +113,7 @@ if (open) {
   console.log('A day cannot be taken for a child that is not yours. ✓');
 }
 // Removing a child takes a parent with it only when that was their last
-// child. Testchild1 is Yogita1's only child, so both must go — then the
+// child. Testchild1 is Sample Parent's only child, so both must go — then the
 // seed puts them back, which proves the import path a second time.
 {
   const { parents } = await call('GET', '/api/admin/parents');
