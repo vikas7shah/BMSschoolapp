@@ -3,7 +3,7 @@
  * Deliberately does not cache API responses — a parent must never be shown a
  * stale snack board and think a day is still free.
  */
-const SHELL_CACHE = 'bms-shell-v1';
+const SHELL_CACHE = 'bms-shell-v2';
 const SHELL_ASSETS = ['/', '/snacks/', '/me/', '/icon-192.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
@@ -46,7 +46,7 @@ self.addEventListener('fetch', (event) => {
 });
 
 self.addEventListener('push', (event) => {
-  let payload = { title: 'Snack Days', body: 'You have a new message.', url: '/' };
+  let payload = { title: 'BMS Families', body: 'You have a new message.', url: '/' };
   try {
     payload = { ...payload, ...(event.data ? event.data.json() : {}) };
   } catch {

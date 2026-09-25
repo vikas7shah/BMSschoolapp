@@ -8,10 +8,10 @@ import { RegisterServiceWorker } from '@/components/register-sw';
 const fraunces = Fraunces({ subsets: ['latin'], weight: ['500', '600'], variable: '--font-fraunces', display: 'swap' });
 
 export const metadata: Metadata = {
-  title: 'Snack Days',
-  description: 'Snack day sign-up and reminders for our Montessori community',
+  title: 'BMS Families',
+  description: 'Snack days, school news and the calendar for Burlington Montessori School families',
   manifest: '/manifest.webmanifest',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Snack Days' },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'BMS Families' },
   icons: { icon: '/icon-192.png', apple: '/icon-192.png' },
 };
 

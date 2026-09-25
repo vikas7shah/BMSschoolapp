@@ -1,4 +1,4 @@
-# Snack Days — Burlington Montessori School
+# BMS Families — Burlington Montessori School
 
 Replaces the snack-day whiteboard with an app parents can use from their phone,
 and — the part the whiteboard could never do — reminds them.

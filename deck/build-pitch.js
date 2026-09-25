@@ -20,7 +20,7 @@ const card = () => ({ type: 'outer', color: '9A9384', blur: 12, offset: 2, angle
   const pres = new pptxgen();
   pres.layout = 'LAYOUT_WIDE';
   pres.author = 'Burlington Montessori School';
-  pres.title = 'Snack Days — a proposal';
+  pres.title = 'BMS Families — a proposal';
 
   const title = (s, text, opts = {}) => s.addText(text, {
     x: 0.7, y: 0.55, w: 11.9, h: 0.8, isTextBox: true, margin: 0,
@@ -38,7 +38,7 @@ const card = () => ({ type: 'outer', color: '9A9384', blur: 12, offset: 2, angle
   /* -------------------------------------------------------------- 1 title */
   const s1 = pres.addSlide();
   s1.background = { color: DEEP };
-  s1.addText('Snack Days', {
+  s1.addText('BMS Families', {
     x: 0.9, y: 1.9, w: 8.5, h: 1.0, isTextBox: true, margin: 0,
     fontFace: HEAD, fontSize: 54, bold: true, color: 'FFFFFF',
   });
@@ -214,6 +214,6 @@ const card = () => ({ type: 'outer', color: '9A9384', blur: 12, offset: 2, angle
   s7.addText('If it earns its place: tuition reminders, important-dates notices and a parent Q&A assistant reuse everything already built.', { x: 0.9, y: 5.4, w: 11.5, h: 0.6, isTextBox: true, margin: 0, fontFace: BODY, fontSize: 13, italic: true, color: '9DBFAB' });
   s7.addNotes('Ask for a term, not a commitment. The whiteboard stays up as the safety net.');
 
-  await pres.writeFile({ fileName: 'Snack Days - School Pitch.pptx' });
+  await pres.writeFile({ fileName: 'BMS Families - School Pitch.pptx' });
   console.log('written');
 })();

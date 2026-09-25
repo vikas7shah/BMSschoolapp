@@ -43,7 +43,7 @@ export class Monitoring extends Construct {
 
     this.topic = new sns.Topic(this, 'Alerts', {
       topicName: `bms-${stage}-alerts`,
-      displayName: 'Snack Days alerts',
+      displayName: 'BMS Families alerts',
     });
     this.topic.addSubscription(new subs.EmailSubscription(props.alertEmail));
 

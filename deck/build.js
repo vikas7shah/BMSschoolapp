@@ -38,7 +38,7 @@ const card = () => ({ type: 'outer', color: '9A9384', blur: 12, offset: 2, angle
   const pres = new pptxgen();
   pres.layout = 'LAYOUT_WIDE';               // 13.333 x 7.5
   pres.author = 'Burlington Montessori School';
-  pres.title = 'Snack Days';
+  pres.title = 'BMS Families';
 
   const W = 13.333;
 
@@ -46,7 +46,7 @@ const card = () => ({ type: 'outer', color: '9A9384', blur: 12, offset: 2, angle
   const s1 = pres.addSlide();
   s1.background = { color: DEEP };
 
-  s1.addText('Snack Days', {
+  s1.addText('BMS Families', {
     x: 0.9, y: 2.15, w: 8.5, h: 1.0, isTextBox: true, margin: 0,
     fontFace: HEAD, fontSize: 54, bold: true, color: 'FFFFFF',
   });
@@ -357,6 +357,6 @@ const card = () => ({ type: 'outer', color: '9A9384', blur: 12, offset: 2, angle
 
   s5.addNotes('Everything on this slide is live data from the running system, not a mock-up.');
 
-  await pres.writeFile({ fileName: 'Snack Days.pptx' });
+  await pres.writeFile({ fileName: 'BMS Families.pptx' });
   console.log('written');
 })();

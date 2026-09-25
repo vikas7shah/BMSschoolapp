@@ -1,7 +1,7 @@
 {
-  "name": "Snack Days",
-  "short_name": "Snack Days",
-  "description": "Snack day sign-up and reminders for our Montessori community",
+  "name": "BMS Families",
+  "short_name": "BMS Families",
+  "description": "Snack days, school news and the calendar for Burlington Montessori School families",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

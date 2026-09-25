@@ -82,7 +82,7 @@ export default function LoginPage() {
             <path d="M9 10a3 3 0 0 1 6 0" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
           </svg>
         </div>
-        <h1 className="font-serif text-[26px] font-semibold tracking-tight">Snack Days</h1>
+        <h1 className="font-serif text-[26px] font-semibold tracking-tight">BMS Families</h1>
         <p className="mt-2 text-sm text-muted">
           Sign in with your email address, or the mobile number the school has on
           file. Either way we&apos;ll email you a code.
