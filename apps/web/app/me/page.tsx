@@ -23,6 +23,11 @@ const CHANNEL_COPY: Record<Channel, { label: string; hint: string }> = {
   inApp: { label: 'In the app', hint: 'Always kept — this is your message history.' },
 };
 
+// In-app is always on (it's the Messages list below), so there's no switch for it.
+const SHOWN = CHANNELS.filter((c) => c !== 'inApp');
+// Texts wait on the toll-free registration; the switch stays visible but can't be used yet.
+const COMING_SOON: readonly Channel[] = ['sms'];
+
 export default function MePage() {
   const { me, reload } = useSession();
   const [prefs, setPrefs] = useState<Record<Channel, boolean> | null>(null);
@@ -95,43 +100,49 @@ export default function MePage() {
         </p>
 
         <ul className="mt-4 divide-y divide-line">
-          {CHANNELS.map((channel) => (
-            <li key={channel} className="flex items-center justify-between gap-4 py-3">
-              <div className="min-w-0">
-                <p className="text-sm font-medium text-ink">{CHANNEL_COPY[channel].label}</p>
-                <p className="text-xs text-muted">
-                  {CHANNEL_COPY[channel].hint}
-                  {channel === 'sms' && (
-                    <> <a href="/sms-terms/" className="underline underline-offset-2">Terms</a> · <a href="/privacy/" className="underline underline-offset-2">Privacy</a></>
-                  )}
-                </p>
+          {SHOWN.map((channel) => (
+            <li key={channel} className="py-3">
+              <div className="flex items-center justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 text-sm font-medium text-ink">
+                    {CHANNEL_COPY[channel].label}
+                    {COMING_SOON.includes(channel) && (
+                      <span className="rounded-full bg-sage-soft px-2 py-0.5 text-[11px] font-semibold text-sage-dark">Coming soon</span>
+                    )}
+                  </p>
+                  <p className="text-xs text-muted">
+                    {CHANNEL_COPY[channel].hint}
+                    {channel === 'sms' && (
+                      <> <a href="/sms-terms/" className="underline underline-offset-2">Terms</a> · <a href="/privacy/" className="underline underline-offset-2">Privacy</a></>
+                    )}
+                  </p>
+                </div>
+                <Toggle
+                  label={CHANNEL_COPY[channel].label}
+                  checked={prefs[channel]}
+                  disabled={saving || COMING_SOON.includes(channel)}
+                  onChange={(v) => void toggle(channel, v)}
+                />
               </div>
-              <Toggle
-                label={CHANNEL_COPY[channel].label}
-                checked={prefs[channel]}
-                disabled={saving || channel === 'inApp'}
-                onChange={(v) => void toggle(channel, v)}
-              />
+              {/* The address sits with its switch; sign-in codes use it too, so it shows even when email is off. */}
+              {channel === 'email' && (
+                <div className="mt-3">
+                  <Field label="Email address" hint="Your sign-in code is sent here.">
+                    <input
+                      className={inputClass}
+                      type="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      onBlur={() => void save(prefs, email)}
+                      placeholder="you@example.com"
+                    />
+                  </Field>
+                </div>
+              )}
             </li>
           ))}
         </ul>
-
-        <div className="mt-4">
-          <Field
-            label="Your email address"
-            hint="Your sign-in code is sent here. Make sure it is yours and not a partner's."
-          >
-            <input
-              className={inputClass}
-              type="email"
-              autoComplete="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              onBlur={() => void save(prefs, email)}
-              placeholder="you@example.com"
-            />
-          </Field>
-        </div>
 
         {!pushSupported() && (
           <p className="mt-4 text-xs text-muted">
