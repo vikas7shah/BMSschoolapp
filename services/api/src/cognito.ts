@@ -61,6 +61,25 @@ export async function setCognitoUserId(phone: string, userId: string): Promise<v
   }));
 }
 
+/**
+ * Keeps the Cognito copy of a parent's number in step with the roster. It is
+ * only a fallback for delivering a code, so a missing Cognito user is ignored.
+ */
+export async function setCognitoPhone(username: string, phone: string): Promise<void> {
+  try {
+    await cognito.send(new AdminUpdateUserAttributesCommand({
+      UserPoolId: env.cognito.userPoolId,
+      Username: username,
+      UserAttributes: [
+        { Name: 'phone_number', Value: phone },
+        { Name: 'phone_number_verified', Value: 'true' },
+      ],
+    }));
+  } catch (err) {
+    if ((err as { name?: string }).name !== 'UserNotFoundException') throw err;
+  }
+}
+
 /** Where the one-time code should be sent for this attempt. */
 export interface CodeDestination {
   channel: 'SMS' | 'EMAIL';

@@ -175,13 +175,19 @@ export async function updateUser(
   userId: string,
   patch: Partial<Pick<User,
     'firstName' | 'lastName' | 'email' | 'phone' | 'prefs' | 'status' | 'lastLoginAt' | 'role'
-    | 'extraPhones' | 'extraEmails'>>,
+    | 'extraPhones' | 'extraEmails' | 'cognitoUsername'>>,
+  /**
+   * Attributes to delete. Phone and email are index keys, which DynamoDB will
+   * not store as an empty string, so clearing one has to remove it.
+   */
+  remove: ('email' | 'phone')[] = [],
 ): Promise<User | null> {
   const normalized = patch.email
     ? { ...patch, email: normalizeEmail(patch.email) }
     : patch;
-  const entries = Object.entries(normalized).filter(([, v]) => v !== undefined);
-  if (!entries.length) return getUser(userId);
+  const entries = Object.entries(normalized)
+    .filter(([k, v]) => v !== undefined && !remove.includes(k as 'email' | 'phone'));
+  if (!entries.length && !remove.length) return getUser(userId);
   entries.push(['updatedAt', nowIso()]);
 
   const names: Record<string, string> = {};
@@ -191,11 +197,15 @@ export async function updateUser(
     values[`:v${i}`] = v;
     return `#k${i} = :v${i}`;
   });
+  const removes = remove.map((k, i) => {
+    names[`#r${i}`] = k;
+    return `#r${i}`;
+  });
 
   const r = await ddb.send(new UpdateCommand({
     TableName: T.users,
     Key: { userId },
-    UpdateExpression: `SET ${sets.join(', ')}`,
+    UpdateExpression: `SET ${sets.join(', ')}${removes.length ? ` REMOVE ${removes.join(', ')}` : ''}`,
     ExpressionAttributeNames: names,
     ExpressionAttributeValues: values,
     ConditionExpression: 'attribute_exists(userId)',

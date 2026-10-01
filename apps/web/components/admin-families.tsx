@@ -223,7 +223,6 @@ function ContactRow({ parent, onChanged, onError }: {
   onError: (msg: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const [email, setEmail] = useState(parent.email ?? '');
   const [busy, setBusy] = useState(false);
   const [confirming, setConfirming] = useState(false);
 
@@ -239,17 +238,6 @@ function ContactRow({ parent, onChanged, onError }: {
       onError(err instanceof ApiError ? err.message : 'Could not remove that parent.');
       setBusy(false);
     }
-  }
-
-  async function save() {
-    setBusy(true);
-    try {
-      await api.patch(`/api/admin/parents/${parent.userId}`, { email });
-      onChanged(`Saved email for ${parent.firstName}.`);
-      setEditing(false);
-    } catch (err) {
-      onError(err instanceof ApiError ? err.message : 'Could not save that email.');
-    } finally { setBusy(false); }
   }
 
   return (
@@ -287,34 +275,33 @@ function ContactRow({ parent, onChanged, onError }: {
       </div>
 
       {editing ? (
-        <div className="mt-2 flex gap-2">
-          <input
-            className={`${inputClass} py-2 text-sm`}
-            type="email"
-            autoFocus
-            placeholder="parent@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-          />
-          <Button size="sm" loading={busy} onClick={() => void save()}>Save</Button>
-          <Button size="sm" variant="ghost" onClick={() => setEditing(false)}>Cancel</Button>
-        </div>
-      ) : parent.email ? (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="mt-1 truncate text-xs text-muted underline underline-offset-2"
-        >
-          {parent.email}
-        </button>
+        <ContactForm
+          parent={parent}
+          onSaved={(msg) => { setEditing(false); onChanged(msg); }}
+          onCancel={() => setEditing(false)}
+          onError={onError}
+        />
       ) : (
-        <button
-          type="button"
-          onClick={() => setEditing(true)}
-          className="mt-1 rounded-full bg-clay-soft px-2.5 py-1 text-xs font-semibold text-clay"
-        >
-          No email — add one so they can sign in
-        </button>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+          {parent.email ? (
+            <span className="truncate text-xs text-muted">{parent.email}</span>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEditing(true)}
+              className="rounded-full bg-clay-soft px-2.5 py-1 text-xs font-semibold text-clay"
+            >
+              No email — add one so they can sign in
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-xs font-medium text-sage underline underline-offset-2"
+          >
+            Edit contact
+          </button>
+        </div>
       )}
 
       {parent.role !== 'ADMIN' && (
@@ -340,5 +327,85 @@ function ContactRow({ parent, onChanged, onError }: {
         )
       )}
     </li>
+  );
+}
+
+/** Name, mobile and email in one place, so a typo on the roster is a quick fix. */
+function ContactForm({ parent, onSaved, onCancel, onError }: {
+  parent: Parent;
+  onSaved: (msg: string) => void;
+  onCancel: () => void;
+  onError: (msg: string) => void;
+}) {
+  const [firstName, setFirstName] = useState(parent.firstName);
+  const [lastName, setLastName] = useState(parent.lastName);
+  const [phone, setPhone] = useState(parent.phone ?? '');
+  const [email, setEmail] = useState(parent.email ?? '');
+  const [busy, setBusy] = useState(false);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.patch(`/api/admin/parents/${parent.userId}`, { firstName, lastName, phone, email });
+      onSaved(`Saved contact details for ${firstName.trim() || parent.firstName}.`);
+    } catch (err) {
+      onError(err instanceof ApiError ? err.message : 'Could not save those details.');
+      setBusy(false);
+    }
+  }
+
+  const label = 'mb-1 block text-[11px] font-medium text-muted';
+  return (
+    <form onSubmit={save} className="mt-2 space-y-2.5 rounded-xl bg-black/[.03] p-3">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="min-w-0">
+          <span className={label}>First name</span>
+          <input
+            className={`${inputClass} py-2 text-sm`}
+            autoFocus
+            value={firstName}
+            onChange={(e) => setFirstName(e.target.value)}
+            required
+          />
+        </label>
+        <label className="min-w-0">
+          <span className={label}>Last name</span>
+          <input
+            className={`${inputClass} py-2 text-sm`}
+            value={lastName}
+            onChange={(e) => setLastName(e.target.value)}
+          />
+        </label>
+      </div>
+      <label className="block">
+        <span className={label}>Mobile number</span>
+        <input
+          className={`${inputClass} py-2 text-sm`}
+          type="tel"
+          inputMode="tel"
+          placeholder="(617) 555-0123"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+        />
+      </label>
+      <label className="block">
+        <span className={label}>Email</span>
+        <input
+          className={`${inputClass} py-2 text-sm`}
+          type="email"
+          placeholder="parent@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+      </label>
+      <p className="text-[11px] text-muted">
+        They sign in with either one. Codes go by email for now.
+      </p>
+      <div className="flex gap-2">
+        <Button size="sm" type="submit" loading={busy}>Save</Button>
+        <Button size="sm" variant="ghost" type="button" onClick={onCancel}>Cancel</Button>
+      </div>
+    </form>
   );
 }

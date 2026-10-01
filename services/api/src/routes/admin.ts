@@ -1,16 +1,16 @@
 import { Hono } from 'hono';
 import {
   createClassroomSchema, dateRange, generateSlotsSchema, importRosterSchema, inviteParentSchema,
-  monthOf, signUpReminder, todayIn,
+  monthOf, normalizePhone, signUpReminder, todayIn,
   type Child, type ImportResult,
 } from '@bms/shared';
 import {
   childrenForGuardian, coverageByMonth, createChild, createClassroom, createUser, deleteUser, endOfNextMonth,
-  deliver, getClassroom, getSchool, getUserByEmail, getUserByPhone, linkGuardian,
+  deliver, getClassroom, getSchool, getUser, getUserByEmail, getUserByPhone, linkGuardian,
   listAllGuardianships, listChildren, listClassrooms, listSlots, listSlotsBySchool, listUsers, markNudged,
   publishRange, setReminderSwitches, unbookedParents, updateUser,
 } from '@bms/backend';
-import { createCognitoUser } from '../cognito.js';
+import { createCognitoUser, setCognitoPhone } from '../cognito.js';
 import { removeChild, removeParent } from '../removal.js';
 import type { Vars } from '../app.js';
 
@@ -151,9 +151,28 @@ route.post('/api/admin/parents', async (c) => {
 });
 
 route.patch('/api/admin/parents/:userId', async (c) => {
+  const userId = c.req.param('userId');
   const body = (await c.req.json().catch(() => ({}))) as {
-    status?: 'ACTIVE' | 'DISABLED'; role?: 'PARENT' | 'ADMIN'; email?: string;
+    status?: 'ACTIVE' | 'DISABLED'; role?: 'PARENT' | 'ADMIN';
+    firstName?: string; lastName?: string; phone?: string; email?: string;
   };
+
+  const current = await getUser(userId);
+  if (!current || current.schoolId !== c.get('user').schoolId) {
+    return c.json({ error: 'Not found' }, 404);
+  }
+  const remove: ('email' | 'phone')[] = [];
+
+  let firstName: string | undefined;
+  let lastName: string | undefined;
+  if (body.firstName !== undefined) {
+    firstName = body.firstName.trim();
+    if (!firstName || firstName.length > 60) return c.json({ error: 'Enter a first name' }, 400);
+  }
+  if (body.lastName !== undefined) {
+    lastName = body.lastName.trim();
+    if (lastName.length > 60) return c.json({ error: 'That last name is too long' }, 400);
+  }
 
   // An email is what lets a parent sign in while SMS is unavailable, so the
   // office needs to be able to add one after the roster import.
@@ -165,16 +184,50 @@ route.patch('/api/admin/parents/:userId', async (c) => {
     }
     if (trimmed) {
       const owner = await getUserByEmail(trimmed);
-      if (owner && owner.userId !== c.req.param('userId')) {
+      if (owner && owner.userId !== userId) {
         return c.json({ error: 'Another family already uses that email address' }, 409);
       }
+      email = trimmed;
+    } else if (current.email) {
+      remove.push('email');
     }
-    email = trimmed;
   }
 
-  const updated = await updateUser(c.req.param('userId'), {
-    status: body.status, role: body.role, email,
-  });
+  // The number a parent signs in with, so a typo on the roster has to be
+  // fixable without removing and re-adding the family.
+  let phone: string | undefined;
+  if (body.phone !== undefined) {
+    if (body.phone.trim()) {
+      const normalized = normalizePhone(body.phone);
+      if (!normalized) return c.json({ error: 'That is not a valid phone number' }, 400);
+      const owner = await getUserByPhone(normalized);
+      if (owner && owner.userId !== userId) {
+        return c.json({ error: 'Another family already uses that phone number' }, 409);
+      }
+      if (normalized !== current.phone) phone = normalized;
+    } else if (current.phone) {
+      remove.push('phone');
+    }
+  }
+
+  // Only an edit that takes the last one away is refused.
+  const willHaveEmail = !remove.includes('email') && !!(email ?? current.email);
+  const willHavePhone = !remove.includes('phone') && !!(phone ?? current.phone);
+  if (remove.length && !willHaveEmail && !willHavePhone) {
+    return c.json({ error: 'Keep a phone number or an email address so they can sign in' }, 400);
+  }
+
+  // Accounts made before usernames were stored are known to Cognito by their
+  // original phone number; pin that before the number changes, or sign-in
+  // would go looking for a Cognito user under the new one.
+  const cognitoUsername = current.cognitoUsername ?? current.phone;
+  if (phone && cognitoUsername) await setCognitoPhone(cognitoUsername, phone);
+
+  const updated = await updateUser(userId, {
+    status: body.status, role: body.role, firstName, lastName, email, phone,
+    ...(!current.cognitoUsername && cognitoUsername && (phone || remove.includes('phone'))
+      ? { cognitoUsername } : {}),
+  }, remove);
   if (!updated) return c.json({ error: 'Not found' }, 404);
   return c.json({ user: updated });
 });
