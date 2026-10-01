@@ -112,11 +112,14 @@ export default function HomePage() {
       {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
       {flash && <div className="mb-3"><Banner tone="success">{flash}</Banner></div>}
 
-      {/* One grid, every tile the same box: columns to fit the screen, rows of
-          a fixed height. Order: coverage (admins), snack days, newsletter,
+      {/* One grid, every tile the same box: columns to fit the screen, rows at
+          least 236px. Tiles are size-contained, so their content never sizes
+          the row — except a curriculum card with the teachers' additions,
+          which takes the height it needs; its row grows and every tile in
+          that row grows to match. Order: coverage (admins), snack days, newsletter,
           calendar, curriculum. A family with three children simply uses more
           tiles; nothing scrolls inside one. */}
-      <div className="grid gap-4 [grid-auto-rows:236px] [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
+      <div className="grid gap-4 [grid-auto-rows:minmax(236px,auto)] [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))] [&>*]:[contain:size]">
         {isAdmin && (overview
           ? <Coverage overview={overview} tile onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
           : <Skeleton className="h-full" />)}
