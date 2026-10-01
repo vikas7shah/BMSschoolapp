@@ -13,14 +13,22 @@ const outputs = await stackOutputs();
 const logGroupName = outputs.CreateAuthChallengeLogGroup;
 const logs = new CloudWatchLogsClient({ region: REGION });
 
-const r = await logs.send(new FilterLogEventsCommand({
-  logGroupName,
-  filterPattern: '"Sign-in code issued for"',
-  startTime: Date.now() - 15 * 60_000,
-  limit: 20,
-}));
+// A filtered read can come back empty with a next page still to scan, so
+// follow the pages rather than trusting the first one.
+const found = [];
+let nextToken;
+do {
+  const r = await logs.send(new FilterLogEventsCommand({
+    logGroupName,
+    filterPattern: '"Sign-in code issued for"',
+    startTime: Date.now() - 15 * 60_000,
+    nextToken,
+  }));
+  found.push(...(r.events ?? []));
+  nextToken = r.nextToken;
+} while (nextToken);
 
-const events = (r.events ?? []).sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
+const events = found.sort((a, b) => (b.timestamp ?? 0) - (a.timestamp ?? 0));
 if (!events.length) {
   console.log('No sign-in code in the last 15 minutes. Request one in the app first.');
   process.exit(0);
