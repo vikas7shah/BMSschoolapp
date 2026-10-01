@@ -61,7 +61,7 @@ export function AdminTeachers({ classrooms, onChanged, onError }: {
         {adding ? 'Cancel' : 'Add a teacher'}
       </Button>
       <p className="text-center text-xs text-muted">
-        Teachers see their classroom&apos;s children, parents and snack days — read-only.
+        Teachers see their classroom&apos;s children, parents and snack days, read-only, and can add to its curriculum.
       </p>
 
       {adding && (

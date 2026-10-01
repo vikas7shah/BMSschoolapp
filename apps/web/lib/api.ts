@@ -106,6 +106,17 @@ export interface Me {
   teaches?: string[];
 }
 
+/** Something a teacher added to their class's curriculum for a month. */
+export interface CurriculumItem {
+  itemId: string;
+  month: string;
+  classroomId: string;
+  area: string;
+  text: string;
+  addedByName: string;
+  updatedAt: string;
+}
+
 /** One classroom as a teacher sees it: every child, and how to reach their parents. */
 export interface ClassList {
   classroomId: string;

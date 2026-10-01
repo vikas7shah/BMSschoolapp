@@ -42,6 +42,11 @@ route.patch('/api/me/prefs', async (c) => {
   const parsed = updatePrefsSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: 'Invalid preferences' }, 400);
 
+  // A teacher signs in with what the office set; only the office changes it.
+  if (user.role === 'TEACHER' && parsed.data.email !== undefined && parsed.data.email !== (user.email ?? '')) {
+    return c.json({ error: 'The office manages your sign-in details' }, 403);
+  }
+
   const prefs = { ...user.prefs, ...parsed.data.prefs };
   // The address is now how a parent signs in, so it is kept even when they have
   // reminder emails switched off.

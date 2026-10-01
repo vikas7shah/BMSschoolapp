@@ -2,10 +2,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { monthLabel, monthOf, type Newsletter } from '@bms/shared';
-import { api } from '@/lib/api';
+import { api, type CurriculumItem } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
-import { NewsletterArticle, myClassroomsOf } from '@/components/newsletter';
+import { NewsletterArticle, groupMatches, myClassroomsOf } from '@/components/newsletter';
 import { EmptyState, PageHeader, Skeleton } from '@/components/ui';
 
 export default function NewsPage() {
@@ -14,10 +14,15 @@ export default function NewsPage() {
   const [month, setMonth] = useState<string | null>(() =>
     typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('month'));
 
+  const [extras, setExtras] = useState<CurriculumItem[]>([]);
+
   useEffect(() => {
     api.get<{ newsletters: Newsletter[] }>('/api/newsletters')
       .then((r) => setList(r.newsletters))
       .catch(() => setList([]));
+    api.get<{ items: CurriculumItem[] }>('/api/curriculum')
+      .then((r) => setExtras(r.items))
+      .catch(() => undefined);
   }, []);
 
   const current = useMemo(() => {
@@ -58,7 +63,17 @@ export default function NewsPage() {
               </span>
             )}
           </div>
-          {current && <NewsletterArticle newsletter={current} myClassrooms={myClassrooms} />}
+          {current && (
+            <NewsletterArticle
+              newsletter={current}
+              myClassrooms={myClassrooms}
+              extrasFor={(group) => {
+                // The newsletter names a group; the teachers' items name a classroom.
+                const roomId = Object.entries(me?.classroomNames ?? {}).find(([, n]) => groupMatches(group, n))?.[0];
+                return extras.filter((e) => e.classroomId === roomId && e.month === current.month);
+              }}
+            />
+          )}
         </>
       )}
 

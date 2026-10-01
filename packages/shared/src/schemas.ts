@@ -139,6 +139,14 @@ export const teacherSchema = z.object({
   classroomIds: z.array(z.string().min(1)).min(1, 'Choose at least one classroom'),
 });
 
+/** A teacher's addition to their class's curriculum. */
+export const classCurriculumSchema = z.object({
+  classroomId: z.string().min(1),
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'Month must look like 2026-10'),
+  area: z.string().trim().min(1, 'Choose an area').max(40),
+  text: z.string().trim().min(1, 'Say what the class is working on').max(300, 'Keep it under 300 characters'),
+});
+
 export const generateSlotsSchema = z.object({
   classroomId: z.string().min(1),
   from: civilDateSchema,

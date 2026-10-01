@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
+  SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type CurriculumGroup, type Newsletter,
 } from '@bms/shared';
-import { api, type ClassList, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
+import { api, type ClassList, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallPrompt } from '@/components/install-prompt';
@@ -25,6 +25,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [newsletters, setNewsletters] = useState<Newsletter[] | null>(null);
+  const [extras, setExtras] = useState<CurriculumItem[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = me?.role === 'ADMIN';
@@ -36,11 +37,13 @@ export default function HomePage() {
   const [board, setBoard] = useState<SnackBoard | null>(null);
 
   const load = useCallback(async () => {
-    const [m, notes, news] = await Promise.all([
+    const [m, notes, news, added] = await Promise.all([
       api.get<MineResponse>('/api/snacks/mine'),
       api.get<{ unread: number; notifications: Notification[] }>('/api/notifications'),
       api.get<{ newsletters: Newsletter[] }>('/api/newsletters').catch(() => ({ newsletters: [] })),
+      api.get<{ items: CurriculumItem[] }>('/api/curriculum').catch(() => ({ items: [] })),
     ]);
+    setExtras(added.items);
     setMine(m);
     setUnread(notes.unread);
     setNewsletters(news.newsletters);
@@ -84,11 +87,23 @@ export default function HomePage() {
 
   const myClassrooms = myClassroomsOf(me);
   const latest = newsletters?.[0] ?? null;
-  const myCurriculum = latest
-    ? latest.curriculum.filter((g) => [...myClassrooms.keys()].some((n) => groupMatches(g.group, n)))
-    : [];
-  const tagFor = (group: string) =>
-    [...myClassrooms.entries()].find(([n]) => groupMatches(group, n))?.[1];
+  // One curriculum card per classroom of mine: this month's once the letter
+  // is out or the teachers have added to it, otherwise the latest letter's.
+  const curriculumCards = [...myClassrooms.entries()].flatMap(([roomName, tag]) => {
+    const roomId = Object.entries(me?.classroomNames ?? {}).find(([, n]) => n === roomName)?.[0];
+    const added = (m: string) => extras.filter((e) => e.classroomId === roomId && e.month === m);
+    const letter = (m: string) =>
+      newsletters?.find((n) => n.month === m)?.curriculum.find((g) => groupMatches(g.group, roomName));
+    const month = letter(thisMonth) || added(thisMonth).length || !latest ? thisMonth : latest.month;
+    const group: CurriculumGroup = letter(month) ?? {
+      group: roomName,
+      teachers: latest?.curriculum.find((g) => groupMatches(g.group, roomName))?.teachers ?? '',
+      subjects: {} as CurriculumGroup['subjects'],
+    };
+    // A teacher always gets the card, so there is somewhere to add from.
+    if (!letter(month) && !added(month).length && !isTeacher) return [];
+    return [{ roomName, tag, month, group, extras: added(month) }];
+  });
 
 
   return (
@@ -181,8 +196,20 @@ export default function HomePage() {
           </Tile>
         )}
 
-        {latest && myCurriculum.map((g) => (
-          <CurriculumCard key={g.group} group={g} month={latest.month} tag={tagFor(g.group)} tile />
+        {newsletters && curriculumCards.map((c) => (
+          <CurriculumCard
+            key={c.roomName}
+            group={c.group}
+            month={c.month}
+            tag={c.tag}
+            extras={c.extras}
+            tile
+            action={isTeacher && (
+              <Link href="/class/?tab=curriculum" className="shrink-0 text-xs font-medium text-sage underline underline-offset-2">
+                Add
+              </Link>
+            )}
+          />
         ))}
 
         {unread > 0 && (

@@ -1,16 +1,24 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { ApiError, api, type ClassList } from '@/lib/api';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  CLASS_CURRICULUM_AREAS, monthLabel, monthOf, todayIn, type Newsletter,
+} from '@bms/shared';
+import { ApiError, api, type ClassList, type CurriculumItem } from '@/lib/api';
+import { CurriculumCard, groupMatches } from '@/components/newsletter';
 import { formatPhone } from '@/lib/phone';
 import { Shell } from '@/components/shell';
 import { Banner, Button, Card, EmptyState, PageHeader, Skeleton, inputClass } from '@/components/ui';
 
 /**
- * A teacher's class list: every child in their room, each parent, and how to
- * reach them. Read-only — changes to the roster go through the office.
+ * A teacher's class: every child in their room, each parent and how to reach
+ * them (read-only — the roster is the office's), and the class's curriculum,
+ * which the teacher can add to beyond what the newsletter lists.
  */
 export default function ClassPage() {
+  const [view, setView] = useState<'CHILDREN' | 'CURRICULUM'>(() =>
+    typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'curriculum'
+      ? 'CURRICULUM' : 'CHILDREN');
   const [rooms, setRooms] = useState<ClassList[] | null>(null);
   const [roomId, setRoomId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
@@ -78,6 +86,23 @@ export default function ClassPage() {
         />
       ) : room && (
         <>
+          <div role="tablist" aria-label="View" className="mb-4 flex gap-1.5 rounded-full bg-black/5 p-1">
+            {([['CHILDREN', 'Children'], ['CURRICULUM', 'Curriculum']] as const).map(([v, label]) => (
+              <button
+                key={v}
+                role="tab"
+                aria-selected={view === v}
+                onClick={() => setView(v)}
+                className={`flex-1 rounded-full px-3 py-2 text-[13px] font-medium transition-colors
+                            ${view === v ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {view === 'CURRICULUM' ? <ClassCurriculum room={room} /> : (
+          <>
           <div className="mb-4 flex gap-2">
             <input
               className={`${inputClass} py-2.5 text-sm`}
@@ -134,9 +159,179 @@ export default function ClassPage() {
           <p className="mt-5 px-1 text-xs text-muted">
             A name or number wrong? The office keeps the roster — let them know and they&apos;ll fix it.
           </p>
+          </>
+          )}
         </>
       )}
     </Shell>
+  );
+}
+
+/**
+ * The class's curriculum for this month or next: the newsletter's six areas as
+ * the office wrote them, then whatever the teachers add. Parents of the class
+ * see the additions alongside the newsletter's.
+ */
+function ClassCurriculum({ room }: { room: ClassList }) {
+  const thisMonth = monthOf(todayIn('America/New_York'));
+  const nextMonth = monthOf(new Date(Date.UTC(Number(thisMonth.slice(0, 4)), Number(thisMonth.slice(5, 7)), 1)).toISOString().slice(0, 10));
+  const [month, setMonth] = useState(thisMonth);
+  const [newsletters, setNewsletters] = useState<Newsletter[]>([]);
+  const [items, setItems] = useState<CurriculumItem[] | null>(null);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    const r = await api.get<{ items: CurriculumItem[] }>('/api/curriculum');
+    setItems(r.items);
+  }, []);
+
+  useEffect(() => {
+    void load().catch(() => setItems([]));
+    api.get<{ newsletters: Newsletter[] }>('/api/newsletters').then((r) => setNewsletters(r.newsletters)).catch(() => undefined);
+  }, [load]);
+
+  const letterGroup = newsletters.find((n) => n.month === month)?.curriculum.find((g) => groupMatches(g.group, room.name));
+  const mine = (items ?? []).filter((i) => i.classroomId === room.classroomId && i.month === month);
+  const short = (m: string) => monthLabel(m).replace(/ \d{4}$/, '');
+
+  async function remove(item: CurriculumItem) {
+    if (!window.confirm(`Remove “${item.text}”?`)) return;
+    try {
+      await api.del(`/api/curriculum/${item.month}/${item.classroomId}/${item.itemId}`);
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not remove that.');
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2">
+        {[thisMonth, nextMonth].map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => { setMonth(m); setEditing(null); }}
+            className={`rounded-full px-3.5 py-2 text-[13px] font-semibold transition-colors
+                        ${month === m ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
+          >
+            {short(m)}
+          </button>
+        ))}
+      </div>
+
+      {error && <Banner tone="error">{error}</Banner>}
+
+      {letterGroup ? (
+        <div>
+          <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">From the newsletter</p>
+          <CurriculumCard group={letterGroup} month={month} />
+        </div>
+      ) : (
+        <p className="px-1 text-sm text-muted">
+          The {short(month)} newsletter isn&apos;t out yet. Anything you add shows to parents now.
+        </p>
+      )}
+
+      <div>
+        <p className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-muted">Added by the teachers</p>
+        {items === null ? <Skeleton className="h-20" /> : (
+          <ul className="space-y-2">
+            {mine.map((i) => (
+              <li key={i.itemId}>
+                <Card className="!p-4">
+                  {editing === i.itemId ? (
+                    <CurriculumForm
+                      room={room}
+                      month={month}
+                      item={i}
+                      onDone={() => { setEditing(null); void load(); }}
+                      onCancel={() => setEditing(null)}
+                    />
+                  ) : (
+                    <>
+                      <p className="text-[10.5px] font-bold uppercase tracking-wide text-sage-dark">{i.area}</p>
+                      <p className="mt-0.5 whitespace-pre-line text-sm text-ink">{i.text}</p>
+                      <div className="mt-2 flex items-center gap-4 text-xs">
+                        <span className="text-muted">Added by {i.addedByName}</span>
+                        <button type="button" onClick={() => setEditing(i.itemId)} className="font-medium text-sage underline underline-offset-2">Edit</button>
+                        <button type="button" onClick={() => void remove(i)} className="font-medium text-clay underline underline-offset-2">Remove</button>
+                      </div>
+                    </>
+                  )}
+                </Card>
+              </li>
+            ))}
+            {!mine.length && <li className="px-1 text-sm text-muted">Nothing added for {short(month)} yet.</li>}
+          </ul>
+        )}
+      </div>
+
+      <Card className="!p-4">
+        <h3 className="font-semibold text-ink">Add to {short(month)}&apos;s curriculum</h3>
+        <p className="mt-0.5 text-xs text-muted">Parents of {room.name} see this with the newsletter&apos;s curriculum.</p>
+        <CurriculumForm key={month} room={room} month={month} onDone={() => void load()} />
+      </Card>
+    </div>
+  );
+}
+
+function CurriculumForm({ room, month, item, onDone, onCancel }: {
+  room: ClassList;
+  month: string;
+  item?: CurriculumItem;
+  onDone: () => void;
+  onCancel?: () => void;
+}) {
+  const [area, setArea] = useState(item?.area ?? '');
+  const [text, setText] = useState(item?.text ?? '');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      if (item) await api.put(`/api/curriculum/${item.month}/${item.classroomId}/${item.itemId}`, { area, text });
+      else await api.post('/api/curriculum', { classroomId: room.classroomId, month, area, text });
+      if (!item) { setArea(''); setText(''); }
+      onDone();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not save that.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={save} className="mt-3 space-y-2.5">
+      <select
+        aria-label="Area"
+        className={`${inputClass} py-2.5 text-sm`}
+        value={area}
+        onChange={(e) => setArea(e.target.value)}
+        required
+      >
+        <option value="">Choose an area…</option>
+        {CLASS_CURRICULUM_AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
+      </select>
+      <textarea
+        aria-label="What the class is working on"
+        className={`${inputClass} min-h-20 py-2.5 text-sm`}
+        placeholder="e.g. Golden beads: building numbers to 1,000"
+        maxLength={300}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        required
+      />
+      {error && <Banner tone="error">{error}</Banner>}
+      <div className="flex gap-2">
+        <Button size="sm" type="submit" loading={busy}>{item ? 'Save' : 'Add'}</Button>
+        {onCancel && <Button size="sm" variant="ghost" type="button" onClick={onCancel}>Cancel</Button>}
+      </div>
+    </form>
   );
 }
 

@@ -68,6 +68,31 @@ export interface CurriculumGroup {
   subjects: Record<CurriculumSubject, string>;
 }
 
+/** Areas a teacher can add to; the newsletter's six first, then the Montessori areas. */
+export const CLASS_CURRICULUM_AREAS = [
+  'Practical life', 'Sensorial', 'Language', 'Math',
+  'Biology', 'Geography', 'Botany', 'Science', 'Culture', 'Art', 'Music', 'Other',
+] as const;
+
+/**
+ * Something a teacher adds to their class's curriculum for a month, beyond
+ * what the office's newsletter lists. Shown to that class's parents with it.
+ */
+export interface ClassCurriculumItem {
+  schoolId: string;
+  /** "2026-10#<classroomId>#<itemId>" — a month's items read in one query. */
+  sk: string;
+  month: string;
+  classroomId: string;
+  itemId: string;
+  area: string;
+  text: string;
+  addedByUserId: string;
+  addedByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NewsletterSection {
   heading: string;
   /** Present-tense points covering everything the school's paragraph said. */

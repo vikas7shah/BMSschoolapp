@@ -22,6 +22,7 @@ export const env = {
     rateLimit: req('TABLE_RATELIMIT'),
     loginChannels: req('TABLE_LOGIN_CHANNEL'),
     newsletters: req('TABLE_NEWSLETTERS'),
+    curriculum: req('TABLE_CURRICULUM'),
   },
   cognito: {
     userPoolId: req('COGNITO_USER_POOL_ID'),
