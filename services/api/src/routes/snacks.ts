@@ -12,11 +12,15 @@ import type { Vars } from '../app.js';
 
 const route = new Hono<{ Variables: Vars }>();
 
-/** Classrooms a parent may act in: those their children belong to. Admins see all. */
+/**
+ * Classrooms a parent may act in: those their children belong to. Admins see
+ * all; a teacher sees the rooms they teach (and can only look — see app.ts).
+ */
 async function visibleClassroomIds(user: Vars['user']): Promise<string[]> {
   if (user.role === 'ADMIN') {
     return (await listClassrooms(user.schoolId)).map((c) => c.classroomId);
   }
+  if (user.role === 'TEACHER') return user.teachesClassroomIds ?? [];
   const kids = await childrenForGuardian(user.userId);
   return [...new Set(kids.map((k) => k.classroomId))];
 }

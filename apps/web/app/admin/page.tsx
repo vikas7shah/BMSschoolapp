@@ -10,8 +10,11 @@ import { RosterImport } from '@/components/roster-import';
 import type { OverviewData } from '@/lib/api';
 import { AdminFamilies, type Child, type Parent } from '@/components/admin-families';
 import { NewsletterEditor } from '@/components/newsletter-editor';
+import { AdminTeachers } from '@/components/admin-teachers';
+import { CurriculumManager } from '@/components/curriculum-manager';
+import type { Newsletter } from '@bms/shared';
 
-type Tab = 'ROSTER' | 'IMPORT' | 'NEWS' | 'SETUP';
+type Tab = 'ROSTER' | 'TEACHERS' | 'IMPORT' | 'NEWS' | 'SETUP';
 
 export default function AdminPage() {
   const { me } = useSession();
@@ -49,7 +52,7 @@ export default function AdminPage() {
 
       <div role="tablist" className="mb-5 flex gap-1.5 rounded-full bg-black/5 p-1">
         {([
-          ['ROSTER', 'Families'], ['IMPORT', 'Import'], ['NEWS', 'Newsletter'], ['SETUP', 'Set-up'],
+          ['ROSTER', 'Families'], ['TEACHERS', 'Teachers'], ['IMPORT', 'Import'], ['NEWS', 'News'], ['SETUP', 'Set-up'],
         ] as const).map(
           ([value, label]) => (
             <button
@@ -57,7 +60,7 @@ export default function AdminPage() {
               role="tab"
               aria-selected={tab === value}
               onClick={() => setTab(value)}
-              className={`flex-1 rounded-full px-2 py-2 text-[13px] font-medium transition-colors
+              className={`flex-1 whitespace-nowrap rounded-full px-1.5 py-2 text-[13px] font-medium transition-colors
                           ${tab === value ? 'bg-surface text-ink shadow-sm' : 'text-muted'}`}
             >
               {label}
@@ -95,6 +98,14 @@ export default function AdminPage() {
         </div>
       )}
 
+      {tab === 'TEACHERS' && (
+        <AdminTeachers
+          classrooms={overview?.classrooms ?? []}
+          onChanged={(msg) => { setFlash(msg); setError(null); }}
+          onError={setError}
+        />
+      )}
+
       {tab === 'IMPORT' && (
         <RosterImport
           classrooms={overview?.classrooms ?? []}
@@ -106,10 +117,19 @@ export default function AdminPage() {
       )}
 
       {tab === 'NEWS' && (
-        <NewsletterEditor
-          onChanged={(msg) => { setFlash(msg); setError(null); }}
-          onError={setError}
-        />
+        <>
+          <NewsletterEditor
+            onChanged={(msg) => { setFlash(msg); setError(null); }}
+            onError={setError}
+          />
+          <section className="mt-8">
+            <h2 className="mb-1 px-1 font-semibold text-ink">Additional curriculum</h2>
+            <p className="mb-4 px-1 text-sm text-muted">
+              Add to a group&apos;s curriculum beyond the newsletter&apos;s. Teachers can add to their own groups too.
+            </p>
+            <AdminCurriculum />
+          </section>
+        </>
       )}
 
       {tab === 'SETUP' && (
@@ -120,6 +140,17 @@ export default function AdminPage() {
       )}
     </Shell>
   );
+}
+
+/** The office may add to every group the newsletters name. */
+function AdminCurriculum() {
+  const [groups, setGroups] = useState<string[] | null>(null);
+  useEffect(() => {
+    api.get<{ newsletters: Newsletter[] }>('/api/newsletters')
+      .then((r) => setGroups([...new Set(r.newsletters.flatMap((n) => n.curriculum.map((g) => g.group)))]))
+      .catch(() => setGroups([]));
+  }, []);
+  return groups ? <CurriculumManager groups={groups} /> : null;
 }
 
 type ParentDraft = { name: string; phone: string; email: string };

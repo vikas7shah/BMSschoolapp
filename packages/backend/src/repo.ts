@@ -3,7 +3,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ulid } from 'ulid';
 import type {
-  Child, Classroom, Newsletter, NotificationRecord, PushSubscriptionRecord, School, SnackSlot, User,
+  Child, ClassCurriculumItem, Classroom, Newsletter, NotificationRecord, PushSubscriptionRecord, School, SnackSlot, User,
 } from '@bms/shared';
 import { DEFAULT_PREFS } from '@bms/shared';
 import { ddb, nowIso, ttlDays } from './ddb.js';
@@ -64,6 +64,33 @@ export async function listNewsletters(schoolId: string): Promise<Newsletter[]> {
     ScanIndexForward: false,
   }));
   return (r.Items as Newsletter[]) ?? [];
+}
+
+/* ------------------------------------------------- teachers' curriculum */
+
+export const curriculumSk = (month: string, itemId: string) => `${month}#${itemId}`;
+
+/** Every item from `fromMonth` on, oldest month first. A school's whole year is small. */
+export async function listCurriculumItems(schoolId: string, fromMonth: string): Promise<ClassCurriculumItem[]> {
+  const r = await ddb.send(new QueryCommand({
+    TableName: T.curriculum,
+    KeyConditionExpression: 'schoolId = :s AND sk >= :from',
+    ExpressionAttributeValues: { ':s': schoolId, ':from': fromMonth },
+  }));
+  return (r.Items as ClassCurriculumItem[]) ?? [];
+}
+
+export async function getCurriculumItem(schoolId: string, sk: string): Promise<ClassCurriculumItem | null> {
+  const r = await ddb.send(new GetCommand({ TableName: T.curriculum, Key: { schoolId, sk } }));
+  return (r.Item as ClassCurriculumItem) ?? null;
+}
+
+export async function putCurriculumItem(item: ClassCurriculumItem): Promise<void> {
+  await ddb.send(new PutCommand({ TableName: T.curriculum, Item: item }));
+}
+
+export async function deleteCurriculumItem(schoolId: string, sk: string): Promise<void> {
+  await ddb.send(new DeleteCommand({ TableName: T.curriculum, Key: { schoolId, sk } }));
 }
 
 /* --------------------------------------------------------------- classrooms */
@@ -147,6 +174,7 @@ export async function listUsers(schoolId: string): Promise<User[]> {
 export async function createUser(input: {
   schoolId: string; role: User['role']; firstName: string; lastName: string;
   phone?: string; email?: string; extraPhones?: string[]; extraEmails?: string[];
+  teachesClassroomIds?: string[];
 }): Promise<User> {
   const now = nowIso();
   const userId = ulid();
@@ -175,7 +203,7 @@ export async function updateUser(
   userId: string,
   patch: Partial<Pick<User,
     'firstName' | 'lastName' | 'email' | 'phone' | 'prefs' | 'status' | 'lastLoginAt' | 'role'
-    | 'extraPhones' | 'extraEmails' | 'cognitoUsername'>>,
+    | 'extraPhones' | 'extraEmails' | 'cognitoUsername' | 'teachesClassroomIds' | 'curriculumGroups'>>,
   /**
    * Attributes to delete. Phone and email are index keys, which DynamoDB will
    * not store as an empty string, so clearing one has to remove it.

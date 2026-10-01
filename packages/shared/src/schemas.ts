@@ -127,6 +127,31 @@ export const inviteParentSchema = z.object({
     .default([]),
 });
 
+/**
+ * A teacher the office adds. Either a mobile number or an email is enough to
+ * sign in; at least one classroom, since a teacher only sees the rooms they teach.
+ */
+export const teacherSchema = z.object({
+  firstName: z.string().trim().min(1, 'Enter a first name').max(60),
+  lastName: z.string().trim().max(60).default(''),
+  phone: z.string().trim().optional().or(z.literal('')),
+  email: z.string().trim().email('That is not a valid email address').optional().or(z.literal('')),
+  classroomIds: z.array(z.string().min(1)).min(1, 'Choose at least one classroom'),
+});
+
+/** An addition to a curriculum group's month, beyond the newsletter's. */
+export const classCurriculumSchema = z.object({
+  group: z.string().trim().min(1).max(60),
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'Month must look like 2026-10'),
+  area: z.string().trim().min(1, 'Choose an area').max(40),
+  text: z.string().trim().min(1, 'Say what the class is working on').max(300, 'Keep it under 300 characters'),
+});
+
+/** The curriculum groups a teacher says they teach. */
+export const curriculumGroupsSchema = z.object({
+  groups: z.array(z.string().trim().min(1).max(60)).max(10),
+});
+
 export const generateSlotsSchema = z.object({
   classroomId: z.string().min(1),
   from: civilDateSchema,

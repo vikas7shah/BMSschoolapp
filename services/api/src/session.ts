@@ -1,4 +1,5 @@
 import { createHmac, timingSafeEqual } from 'node:crypto';
+import type { Role } from '@bms/shared';
 import { getSecret } from '@bms/backend';
 import { env } from '@bms/backend';
 
@@ -7,7 +8,7 @@ const MAX_AGE_SECONDS = 30 * 24 * 60 * 60;
 
 export interface SessionClaims {
   sub: string;      // userId
-  role: 'PARENT' | 'ADMIN';
+  role: Role;
   sid: string;      // school id
   iat: number;
   exp: number;

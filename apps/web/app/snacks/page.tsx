@@ -149,11 +149,15 @@ export default function SnacksPage() {
     )?.date ?? null;
   };
   const room = board?.classrooms.find((c) => c.classroomId === classroomId);
-  const locked = !!room?.full && !board?.isAdmin;
+  const isTeacher = me?.role === 'TEACHER';
+  const locked = !!room?.full && !board?.isAdmin && !isTeacher;
 
   return (
     <Shell>
-      <PageHeader title="Snack days" subtitle="Tap a day your family can bring snacks." />
+      <PageHeader
+        title="Snack days"
+        subtitle={isTeacher ? 'Which family brings snacks each day. Tap a day to see who.' : 'Tap a day your family can bring snacks.'}
+      />
 
       {isParent && children.length > 1 && (
         <div role="tablist" aria-label="Which child" className="mb-4 flex gap-1.5 rounded-full bg-black/5 p-1">
@@ -233,10 +237,11 @@ export default function SnacksPage() {
           onRelease={(slot) => act(slot, 'release')}
           onRemindTomorrow={(slot, on) => void remindTomorrow(slot, on)}
           existingThisMonth={existingFor}
+          readOnly={isTeacher}
         />
       )}
 
-      <Link
+      {!isTeacher && <Link
         href="/what-to-bring/"
         className="mt-8 flex items-center gap-3 rounded-2xl bg-sun-soft px-4 py-3.5
                    transition-colors hover:bg-[#fbecd0]"
@@ -251,12 +256,12 @@ export default function SnacksPage() {
         <svg viewBox="0 0 24 24" className="size-5 shrink-0 text-[#8a6414]" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="m9 18 6-6-6-6" />
         </svg>
-      </Link>
+      </Link>}
 
-      <p className="mt-4 px-1 text-xs text-muted">
+      {!isTeacher && <p className="mt-4 px-1 text-xs text-muted">
         Can&apos;t make your day? Open it and tap &ldquo;I can&apos;t do this day&rdquo; so
         another family can pick it up.
-      </p>
+      </p>}
     </Shell>
   );
 }

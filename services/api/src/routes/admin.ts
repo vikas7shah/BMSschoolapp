@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import {
   createClassroomSchema, dateRange, generateSlotsSchema, importRosterSchema, inviteParentSchema,
-  monthOf, normalizePhone, signUpReminder, todayIn,
+  monthOf, normalizePhone, signUpReminder, teacherSchema, todayIn,
   type Child, type ImportResult,
 } from '@bms/shared';
 import {
@@ -10,7 +10,7 @@ import {
   listAllGuardianships, listChildren, listClassrooms, listSlots, listSlotsBySchool, listUsers, markNudged,
   publishRange, setReminderSwitches, unbookedParents, updateUser,
 } from '@bms/backend';
-import { createCognitoUser, setCognitoPhone } from '../cognito.js';
+import { createCognitoUser, deleteCognitoUser, setCognitoPhone } from '../cognito.js';
 import { removeChild, removeParent } from '../removal.js';
 import type { Vars } from '../app.js';
 
@@ -64,6 +64,102 @@ route.post('/api/admin/classrooms', async (c) => {
   return c.json({ classroom }, 201);
 });
 
+/* ----------------------------------------------------------------- teachers */
+
+/**
+ * Teachers see their own classrooms, read-only. The office adds them here;
+ * a mobile number or an email is how they sign in, like a parent.
+ */
+route.get('/api/admin/teachers', async (c) => {
+  const users = await listUsers(c.get('user').schoolId);
+  return c.json({
+    teachers: users
+      .filter((u) => u.role === 'TEACHER')
+      .sort((a, b) => a.firstName.localeCompare(b.firstName))
+      .map((u) => ({
+        userId: u.userId, firstName: u.firstName, lastName: u.lastName, phone: u.phone, email: u.email,
+        classroomIds: u.teachesClassroomIds ?? [], status: u.status, lastLoginAt: u.lastLoginAt,
+      })),
+  });
+});
+
+/** Checks a teacher's details; the error is a sentence for the office, or null. */
+type TeacherDetails = {
+  firstName: string; lastName: string; phone?: string; email?: string; teachesClassroomIds: string[];
+};
+async function teacherDetails(
+  schoolId: string, body: unknown, selfId?: string,
+): Promise<{ error: string } | { data: TeacherDetails }> {
+  const parsed = teacherSchema.safeParse(body);
+  if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? 'Check the details' } as const;
+  const d = parsed.data;
+  const phone = d.phone ? normalizePhone(d.phone) ?? undefined : undefined;
+  if (d.phone && !phone) return { error: 'That is not a valid phone number' };
+  const email = d.email || undefined;
+  if (!phone && !email) return { error: 'Add a mobile number or an email so they can sign in' };
+
+  const rooms = new Set((await listClassrooms(schoolId)).map((r) => r.classroomId));
+  if (d.classroomIds.some((id) => !rooms.has(id))) return { error: 'Unknown classroom' };
+
+  const byPhone = phone ? await getUserByPhone(phone) : null;
+  if (byPhone && byPhone.userId !== selfId) return { error: 'Someone already uses that phone number' };
+  const byEmail = email ? await getUserByEmail(email) : null;
+  if (byEmail && byEmail.userId !== selfId) return { error: 'Someone already uses that email address' };
+
+  return {
+    data: {
+      firstName: d.firstName, lastName: d.lastName, phone, email,
+      teachesClassroomIds: [...new Set(d.classroomIds)],
+    },
+  };
+}
+
+route.post('/api/admin/teachers', async (c) => {
+  const admin = c.get('user');
+  const r = await teacherDetails(admin.schoolId, await c.req.json().catch(() => ({})));
+  if ('error' in r) return c.json({ error: r.error }, r.error.startsWith('Someone') ? 409 : 400);
+
+  const user = await createUser({ schoolId: admin.schoolId, role: 'TEACHER', ...r.data });
+  try {
+    await createCognitoUser(user.cognitoUsername, user.userId, user.phone);
+  } catch (err) {
+    await deleteUser(user.userId);
+    throw err;
+  }
+  return c.json({ user }, 201);
+});
+
+route.patch('/api/admin/teachers/:userId', async (c) => {
+  const admin = c.get('user');
+  const current = await getUser(c.req.param('userId'));
+  if (!current || current.schoolId !== admin.schoolId || current.role !== 'TEACHER') {
+    return c.json({ error: 'Not found' }, 404);
+  }
+  const r = await teacherDetails(admin.schoolId, await c.req.json().catch(() => ({})), current.userId);
+  if ('error' in r) return c.json({ error: r.error }, r.error.startsWith('Someone') ? 409 : 400);
+
+  const remove = [
+    ...(!r.data.phone && current.phone ? ['phone' as const] : []),
+    ...(!r.data.email && current.email ? ['email' as const] : []),
+  ];
+  if (r.data.phone && r.data.phone !== current.phone) {
+    await setCognitoPhone(current.cognitoUsername ?? current.phone ?? current.userId, r.data.phone);
+  }
+  const updated = await updateUser(current.userId, r.data, remove);
+  return c.json({ user: updated });
+});
+
+route.delete('/api/admin/teachers/:userId', async (c) => {
+  const admin = c.get('user');
+  const current = await getUser(c.req.param('userId'));
+  if (!current || current.schoolId !== admin.schoolId || current.role !== 'TEACHER') {
+    return c.json({ error: 'Not found' }, 404);
+  }
+  await deleteCognitoUser(current.cognitoUsername ?? current.phone ?? '');
+  await deleteUser(current.userId);
+  return c.json({ ok: true });
+});
+
 /* ------------------------------------------------------------------- roster */
 
 route.get('/api/admin/parents', async (c) => {
@@ -83,7 +179,8 @@ route.get('/api/admin/parents', async (c) => {
         classroomId: k.classroomId,
       }))
       .sort((a, b) => a.firstName.localeCompare(b.firstName)),
-    parents: users.map((u) => ({
+    // Teachers have their own tab; this is the family roster.
+    parents: users.filter((u) => u.role !== 'TEACHER').map((u) => ({
       userId: u.userId, firstName: u.firstName, lastName: u.lastName, phone: u.phone,
       email: u.email, extraPhones: u.extraPhones, extraEmails: u.extraEmails,
       role: u.role, status: u.status, prefs: u.prefs, lastLoginAt: u.lastLoginAt,

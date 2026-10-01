@@ -1,6 +1,7 @@
 /** Core domain types shared by the API, reminder jobs and the web client. */
 
-export type Role = 'PARENT' | 'ADMIN';
+/** A teacher sees their own classrooms, read-only; they never book or edit. */
+export type Role = 'PARENT' | 'ADMIN' | 'TEACHER';
 export type UserStatus = 'INVITED' | 'ACTIVE' | 'DISABLED';
 
 export type SlotStatus = 'OPEN' | 'CLAIMED';
@@ -67,6 +68,33 @@ export interface CurriculumGroup {
   subjects: Record<CurriculumSubject, string>;
 }
 
+/** Areas a teacher can add to; the newsletter's six first, then the Montessori areas. */
+export const CLASS_CURRICULUM_AREAS = [
+  'Practical life', 'Sensorial', 'Language', 'Math',
+  'Biology', 'Geography', 'Botany', 'Science', 'Culture', 'Art', 'Music', 'Other',
+] as const;
+
+/**
+ * Something a teacher or the office adds to a curriculum group for a month,
+ * beyond what the newsletter lists. Shown with that group's curriculum.
+ */
+export interface ClassCurriculumItem {
+  schoolId: string;
+  /** "2026-09#<itemId>" — a month's items read in one query. */
+  sk: string;
+  /** The newsletter month it adds to. */
+  month: string;
+  /** The newsletter's curriculum group: "Classroom 1", "Elementary". */
+  group: string;
+  itemId: string;
+  area: string;
+  text: string;
+  addedByUserId: string;
+  addedByName: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface NewsletterSection {
   heading: string;
   /** Present-tense points covering everything the school's paragraph said. */
@@ -122,6 +150,13 @@ export interface User {
   extraPhones?: string[];
   /** Further addresses the school holds. Sign-in uses `email`. */
   extraEmails?: string[];
+  /** For a teacher: the classrooms they teach, and so may see. */
+  teachesClassroomIds?: string[];
+  /**
+   * For a teacher: the newsletter's curriculum groups they teach, chosen by
+   * them ("Elementary" has no classroom). Unset means their classrooms' names.
+   */
+  curriculumGroups?: string[];
   status: UserStatus;
   prefs: ChannelPrefs;
   createdAt: string;
@@ -214,6 +249,10 @@ export interface SessionUser {
   prefs: ChannelPrefs;
   children: Child[];
   classroomIds: string[];
-  /** Names of the classrooms the children are in, keyed by id. */
+  /** Names of every classroom in the school, keyed by id. */
   classroomNames: Record<string, string>;
+  /** For a teacher: the classrooms they teach. */
+  teaches?: string[];
+  /** For a teacher: the curriculum groups they teach. */
+  curriculumGroups?: string[];
 }

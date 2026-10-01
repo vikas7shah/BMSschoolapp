@@ -1,10 +1,12 @@
 import { handle } from 'hono/aws-lambda';
-import { createApp, authenticate, requireAdmin } from './app.js';
+import { createApp, authenticate, readOnlyForTeachers, requireAdmin, requireStaff } from './app.js';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import snackRoutes from './routes/snacks.js';
 import adminRoutes from './routes/admin.js';
 import newsletterRoutes from './routes/newsletters.js';
+import classRoutes from './routes/class.js';
+import curriculumRoutes from './routes/curriculum.js';
 
 const app = createApp();
 
@@ -30,19 +32,24 @@ app.route('/', authRoutes);
 // Everything else requires a session.
 app.use('/api/me/*', authenticate);
 app.use('/api/me', authenticate);
-app.use('/api/snacks/*', authenticate);
+app.use('/api/snacks/*', authenticate, readOnlyForTeachers);
 app.use('/api/snacks', authenticate);
 app.use('/api/notifications/*', authenticate);
 app.use('/api/notifications', authenticate);
 app.use('/api/push/*', authenticate);
 app.use('/api/newsletters/*', authenticate);
 app.use('/api/newsletters', authenticate);
+app.use('/api/class', authenticate, requireStaff);
+app.use('/api/curriculum', authenticate);
+app.use('/api/curriculum/*', authenticate);
 app.use('/api/admin/*', authenticate, requireAdmin);
 
 app.route('/', meRoutes);
 app.route('/', snackRoutes);
 app.route('/', adminRoutes);
 app.route('/', newsletterRoutes);
+app.route('/', classRoutes);
+app.route('/', curriculumRoutes);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
 

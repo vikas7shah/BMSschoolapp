@@ -88,12 +88,15 @@ export default function MePage() {
   }
 
   if (!me || !prefs) return <Shell><div /></Shell>;
+  const isTeacher = me.role === 'TEACHER';
 
   return (
     <Shell>
-      <PageHeader title="You" subtitle={`${me.firstName} ${me.lastName} · ${me.phone}`} />
+      <PageHeader title="You" subtitle={[`${me.firstName} ${me.lastName}`, me.phone].filter(Boolean).join(' · ')} />
 
-      <Card>
+      {/* A teacher signs in with what the office set, and gets no reminders. */}
+      {!isTeacher && (
+      <Card className="mb-4">
         <h2 className="font-semibold text-ink">Email &amp; reminders</h2>
         <p className="mt-1 text-sm text-muted">
           We&apos;ll remind you 2 days before your snack day, and at the start of the month if you haven&apos;t picked one.
@@ -159,9 +162,22 @@ export default function MePage() {
         )}
         {status && <div className="mt-4"><Banner tone={status.tone}>{status.text}</Banner></div>}
       </Card>
+      )}
 
-      <div className="mt-4"><InstallCard /></div>
+      <InstallCard />
 
+      {isTeacher ? (
+        <Card className="mt-4">
+          <h2 className="font-semibold text-ink">Your {me.teaches && me.teaches.length > 1 ? 'classrooms' : 'classroom'}</h2>
+          <ul className="mt-3 space-y-1.5">
+            {(me.teaches ?? []).map((id) => (
+              <li key={id} className="text-sm text-ink">{me.classroomNames[id]}</li>
+            ))}
+            {!me.teaches?.length && <li className="text-sm text-muted">None yet — ask the office to add yours.</li>}
+          </ul>
+          <p className="mt-3 text-xs text-muted">You can see your class and add to its curriculum. The office makes any other changes.</p>
+        </Card>
+      ) : (
       <Card className="mt-4">
         <h2 className="font-semibold text-ink">Your children</h2>
         <ul className="mt-3 space-y-1.5">
@@ -175,6 +191,7 @@ export default function MePage() {
           ))}
         </ul>
       </Card>
+      )}
 
       <section className="mt-4">
         <h2 className="mb-3 px-1 font-semibold text-ink">Messages</h2>
