@@ -68,8 +68,7 @@ export async function listNewsletters(schoolId: string): Promise<Newsletter[]> {
 
 /* ------------------------------------------------- teachers' curriculum */
 
-export const curriculumSk = (month: string, classroomId: string, itemId: string) =>
-  `${month}#${classroomId}#${itemId}`;
+export const curriculumSk = (month: string, itemId: string) => `${month}#${itemId}`;
 
 /** Every item from `fromMonth` on, oldest month first. A school's whole year is small. */
 export async function listCurriculumItems(schoolId: string, fromMonth: string): Promise<ClassCurriculumItem[]> {
@@ -204,7 +203,7 @@ export async function updateUser(
   userId: string,
   patch: Partial<Pick<User,
     'firstName' | 'lastName' | 'email' | 'phone' | 'prefs' | 'status' | 'lastLoginAt' | 'role'
-    | 'extraPhones' | 'extraEmails' | 'cognitoUsername' | 'teachesClassroomIds'>>,
+    | 'extraPhones' | 'extraEmails' | 'cognitoUsername' | 'teachesClassroomIds' | 'curriculumGroups'>>,
   /**
    * Attributes to delete. Phone and email are index keys, which DynamoDB will
    * not store as an empty string, so clearing one has to remove it.

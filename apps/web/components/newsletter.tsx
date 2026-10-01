@@ -30,7 +30,9 @@ export function CurriculumCard({ group, month, tag, lifted, link, tile, extras =
   tile?: boolean;
 }) {
   return (
-    <Card className={`${lifted ? 'border-sage ring-[3px] ring-sage-soft' : ''} ${tile ? 'flex h-full min-h-0 flex-col overflow-hidden' : ''}`}>
+    // On Home, a card with additions takes two rows, so the newsletter's six
+    // and the teachers' items both show in full rather than being squeezed.
+    <Card className={`${lifted ? 'border-sage ring-[3px] ring-sage-soft' : ''} ${tile ? 'flex h-full min-h-0 flex-col overflow-hidden' : ''} ${tile && extras.length ? '[grid-row:span_2]' : ''}`}>
       {tile && (
         <p className="mb-1 text-[10.5px] font-bold uppercase tracking-wide text-muted">
           Curriculum · {monthLabel(month).replace(/ \d{4}$/, '')}
@@ -54,7 +56,9 @@ export function CurriculumCard({ group, month, tag, lifted, link, tile, extras =
       </div>
       {group.teachers && <p className={`mt-0.5 text-xs text-muted ${tile ? 'truncate' : ''}`}>{group.teachers}</p>}
       {hasSubjects(group) && (
-      <div className={tile ? 'mt-2 grid min-h-0 flex-1 grid-cols-3 grid-rows-2 gap-1.5' : 'mt-3 flex flex-wrap gap-2'}>
+      <div className={tile
+        ? `mt-2 grid grid-cols-3 gap-1.5 ${extras.length ? '' : 'min-h-0 flex-1 grid-rows-2'}`
+        : 'mt-3 flex flex-wrap gap-2'}>
         {CURRICULUM_SUBJECTS.map(([key, label]) => {
           const value = group.subjects?.[key];
           if (!value) return null;
@@ -72,12 +76,8 @@ export function CurriculumCard({ group, month, tag, lifted, link, tile, extras =
       {!hasSubjects(group) && !extras.length && (
         <p className="mt-2 text-sm text-muted">Nothing added for this month yet.</p>
       )}
-      {extras.length > 0 && (tile && hasSubjects(group) ? (
-        <p className="mt-2 shrink-0 truncate text-[12px] font-medium text-sage-dark">
-          + {extras.length} more from the teachers: {extras.map((e) => e.area).join(', ')}
-        </p>
-      ) : (
-        <div className={tile ? 'mt-2 min-h-0 flex-1 overflow-hidden' : 'mt-3'}>
+      {extras.length > 0 && (
+        <div className={tile ? 'mt-3 min-h-0 flex-1 overflow-hidden' : 'mt-3'}>
           {hasSubjects(group) && (
             <p className="mb-1.5 text-[10.5px] font-bold uppercase tracking-wide text-sage-dark">Added by the teachers</p>
           )}
@@ -90,7 +90,7 @@ export function CurriculumCard({ group, month, tag, lifted, link, tile, extras =
             ))}
           </div>
         </div>
-      ))}
+      )}
     </Card>
   );
 }
@@ -170,18 +170,16 @@ export function NewsletterArticle({ newsletter, myClassrooms, extrasFor = () => 
 
 /**
  * Which classrooms are "mine", by name, with the child to tag them with — or,
- * for a teacher, the rooms they teach, tagged as theirs.
+ * for a teacher, the curriculum groups they teach, tagged as theirs.
  */
 export function myClassroomsOf(me: {
   children: { firstName: string; classroomId: string }[];
   classroomNames: Record<string, string>;
   teaches?: string[];
+  curriculumGroups?: string[];
 } | null) {
   const m = new Map<string, string>();
-  for (const id of me?.teaches ?? []) {
-    const name = me?.classroomNames[id];
-    if (name) m.set(name, 'Your class');
-  }
+  for (const group of me?.curriculumGroups ?? []) m.set(group, 'Your class');
   for (const k of me?.children ?? []) {
     const name = me?.classroomNames[k.classroomId];
     if (name && !m.has(name)) m.set(name, k.firstName);

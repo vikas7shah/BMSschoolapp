@@ -67,11 +67,7 @@ export default function NewsPage() {
             <NewsletterArticle
               newsletter={current}
               myClassrooms={myClassrooms}
-              extrasFor={(group) => {
-                // The newsletter names a group; the teachers' items name a classroom.
-                const roomId = Object.entries(me?.classroomNames ?? {}).find(([, n]) => groupMatches(group, n))?.[0];
-                return extras.filter((e) => e.classroomId === roomId && e.month === current.month);
-              }}
+              extrasFor={(group) => extras.filter((e) => groupMatches(e.group, group) && e.month === current.month)}
             />
           )}
         </>

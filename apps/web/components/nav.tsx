@@ -18,8 +18,15 @@ export function BottomNav() {
   const items = me?.role === 'ADMIN'
     ? [...ITEMS, { href: '/admin/', label: 'Admin', icon: GridIcon } as const]
     : me?.role === 'TEACHER'
-      // A teacher's class list sits next to Home; Snacks stays, read-only.
-      ? [ITEMS[0], { href: '/class/', label: 'Class', icon: ClassIcon } as const, ...ITEMS.slice(1)]
+      // A teacher's class list and curriculum sit next to Home; Snacks stays,
+      // read-only. Six fit a phone, so the school calendar is reached from
+      // its tile on Home rather than a tab.
+      ? [
+        ITEMS[0],
+        { href: '/class/', label: 'Class', icon: ClassIcon } as const,
+        { href: '/curriculum/', label: 'Curriculum', icon: BookIcon } as const,
+        ITEMS[1], ITEMS[3], ITEMS[4],
+      ]
       : ITEMS;
 
   const isActive = (href: string) =>
@@ -103,6 +110,16 @@ function AppleIcon({ filled }: IconProps) {
       <path d="M12 8c-1.6-1.4-4.1-1.3-5.6.4C4.2 10.9 4.8 15.6 7.6 18.8c1.3 1.5 2.7 1.7 4.4.9 1.7.8 3.1.6 4.4-.9 2.8-3.2 3.4-7.9 1.2-10.4C16.1 6.7 13.6 6.6 12 8Z" />
       <path d="M12 8V5.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
       <path d="M12 5.5c.5-1.5 2-2.5 3.5-2.5 0 1.5-1 3-3.5 3" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** An open book. */
+function BookIcon({ filled }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className="size-6" aria-hidden {...(filled ? { fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.2 } : stroke)}>
+      <path d="M12 6.5C10 5 7 4.5 3.5 5v13c3.5-.5 6.5 0 8.5 1.5z" />
+      <path d="M12 6.5C14 5 17 4.5 20.5 5v13c-3.5-.5-6.5 0-8.5 1.5z" />
     </svg>
   );
 }

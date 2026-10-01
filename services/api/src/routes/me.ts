@@ -1,11 +1,12 @@
 import { createHash } from 'node:crypto';
 import { Hono } from 'hono';
-import { pushSubscribeSchema, updatePrefsSchema, type SessionUser } from '@bms/shared';
+import { curriculumGroupsSchema, pushSubscribeSchema, updatePrefsSchema, type SessionUser } from '@bms/shared';
 import {
   childrenForGuardian, deletePushSubscription, getVapidPublicKey, listClassrooms, listNotifications,
   markNotificationRead, putPushSubscription, updateUser,
 } from '@bms/backend';
 import type { Vars } from '../app.js';
+import { teacherGroups } from './curriculum.js';
 
 const route = new Hono<{ Variables: Vars }>();
 
@@ -32,7 +33,9 @@ route.get('/api/me', async (c) => {
     children,
     classroomIds: [...new Set(children.map((k) => k.classroomId))],
     classroomNames: Object.fromEntries(rooms.map((r) => [r.classroomId, r.name])),
-    ...(user.role === 'TEACHER' ? { teaches: taughtRooms(user, rooms) } : {}),
+    ...(user.role === 'TEACHER'
+      ? { teaches: taughtRooms(user, rooms), curriculumGroups: await teacherGroups(user) }
+      : {}),
   };
   return c.json(payload);
 });
@@ -63,6 +66,21 @@ route.patch('/api/me/prefs', async (c) => {
 
   const updated = await updateUser(user.userId, { prefs, email });
   return c.json({ prefs: updated?.prefs, email: updated?.email });
+});
+
+/**
+ * The newsletter curriculum groups a teacher teaches — "Elementary" has no
+ * classroom, so they choose. Decides what is on their Home and what they may
+ * add to. Their own profile, so theirs to set.
+ */
+route.put('/api/me/curriculum-groups', async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'TEACHER') return c.json({ error: 'For teachers' }, 403);
+  const parsed = curriculumGroupsSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: 'Invalid groups' }, 400);
+  const groups = [...new Set(parsed.data.groups)];
+  await updateUser(user.userId, { curriculumGroups: groups });
+  return c.json({ curriculumGroups: groups });
 });
 
 route.get('/api/notifications', async (c) => {

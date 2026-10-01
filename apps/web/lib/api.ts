@@ -104,13 +104,16 @@ export interface Me {
   classroomNames: Record<string, string>;
   /** For a teacher: the classrooms they teach. */
   teaches?: string[];
+  /** For a teacher: the newsletter curriculum groups they teach. */
+  curriculumGroups?: string[];
 }
 
-/** Something a teacher added to their class's curriculum for a month. */
+/** Something a teacher or the office added to a curriculum group's month. */
 export interface CurriculumItem {
   itemId: string;
   month: string;
-  classroomId: string;
+  /** The newsletter's group: "Classroom 1", "Elementary". */
+  group: string;
   area: string;
   text: string;
   addedByName: string;

@@ -75,15 +75,17 @@ export const CLASS_CURRICULUM_AREAS = [
 ] as const;
 
 /**
- * Something a teacher adds to their class's curriculum for a month, beyond
- * what the office's newsletter lists. Shown to that class's parents with it.
+ * Something a teacher or the office adds to a curriculum group for a month,
+ * beyond what the newsletter lists. Shown with that group's curriculum.
  */
 export interface ClassCurriculumItem {
   schoolId: string;
-  /** "2026-10#<classroomId>#<itemId>" — a month's items read in one query. */
+  /** "2026-09#<itemId>" — a month's items read in one query. */
   sk: string;
+  /** The newsletter month it adds to. */
   month: string;
-  classroomId: string;
+  /** The newsletter's curriculum group: "Classroom 1", "Elementary". */
+  group: string;
   itemId: string;
   area: string;
   text: string;
@@ -150,6 +152,11 @@ export interface User {
   extraEmails?: string[];
   /** For a teacher: the classrooms they teach, and so may see. */
   teachesClassroomIds?: string[];
+  /**
+   * For a teacher: the newsletter's curriculum groups they teach, chosen by
+   * them ("Elementary" has no classroom). Unset means their classrooms' names.
+   */
+  curriculumGroups?: string[];
   status: UserStatus;
   prefs: ChannelPrefs;
   createdAt: string;
@@ -246,4 +253,6 @@ export interface SessionUser {
   classroomNames: Record<string, string>;
   /** For a teacher: the classrooms they teach. */
   teaches?: string[];
+  /** For a teacher: the curriculum groups they teach. */
+  curriculumGroups?: string[];
 }

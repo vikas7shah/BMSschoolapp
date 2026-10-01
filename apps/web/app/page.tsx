@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type CurriculumGroup, type Newsletter,
+  SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
 import { api, type ClassList, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -87,23 +87,17 @@ export default function HomePage() {
 
   const myClassrooms = myClassroomsOf(me);
   const latest = newsletters?.[0] ?? null;
-  // One curriculum card per classroom of mine: this month's once the letter
-  // is out or the teachers have added to it, otherwise the latest letter's.
-  const curriculumCards = [...myClassrooms.entries()].flatMap(([roomName, tag]) => {
-    const roomId = Object.entries(me?.classroomNames ?? {}).find(([, n]) => n === roomName)?.[0];
-    const added = (m: string) => extras.filter((e) => e.classroomId === roomId && e.month === m);
-    const letter = (m: string) =>
-      newsletters?.find((n) => n.month === m)?.curriculum.find((g) => groupMatches(g.group, roomName));
-    const month = letter(thisMonth) || added(thisMonth).length || !latest ? thisMonth : latest.month;
-    const group: CurriculumGroup = letter(month) ?? {
-      group: roomName,
-      teachers: latest?.curriculum.find((g) => groupMatches(g.group, roomName))?.teachers ?? '',
-      subjects: {} as CurriculumGroup['subjects'],
-    };
-    // A teacher always gets the card, so there is somewhere to add from.
-    if (!letter(month) && !added(month).length && !isTeacher) return [];
-    return [{ roomName, tag, month, group, extras: added(month) }];
-  });
+  // The latest letter's curriculum for each of my groups, with whatever the
+  // teachers or the office added to that month alongside it.
+  const curriculumCards = latest
+    ? latest.curriculum
+      .filter((g) => myClassrooms.has(g.group) || [...myClassrooms.keys()].some((n) => groupMatches(g.group, n)))
+      .map((g) => ({
+        group: g,
+        tag: [...myClassrooms.entries()].find(([n]) => groupMatches(g.group, n))?.[1],
+        extras: extras.filter((e) => groupMatches(e.group, g.group) && e.month === latest.month),
+      }))
+    : [];
 
 
   return (
@@ -196,16 +190,19 @@ export default function HomePage() {
           </Tile>
         )}
 
-        {newsletters && curriculumCards.map((c) => (
+        {latest && curriculumCards.map((c) => (
           <CurriculumCard
-            key={c.roomName}
+            key={c.group.group}
             group={c.group}
-            month={c.month}
+            month={latest.month}
             tag={c.tag}
             extras={c.extras}
             tile
             action={isTeacher && (
-              <Link href="/class/?tab=curriculum" className="shrink-0 text-xs font-medium text-sage underline underline-offset-2">
+              <Link
+                href={`/curriculum/?group=${encodeURIComponent(c.group.group)}`}
+                className="shrink-0 text-xs font-medium text-sage underline underline-offset-2"
+              >
                 Add
               </Link>
             )}
