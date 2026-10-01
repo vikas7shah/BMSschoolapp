@@ -151,57 +151,61 @@ export class Monitoring extends Construct {
     // delivery-status logging on, every failure lands in a known log group,
     // which we then alarm on. Configured account-wide via a custom resource,
     // as CloudFormation has no resource for it.
-    const smsLogRole = new iam.Role(this, 'SmsDeliveryLogRole', {
-      assumedBy: new iam.ServicePrincipal('sns.amazonaws.com'),
-      inlinePolicies: {
-        logs: new iam.PolicyDocument({
-          statements: [new iam.PolicyStatement({
-            actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents',
-              'logs:PutMetricFilter', 'logs:PutRetentionPolicy'],
-            resources: ['*'],
-          })],
-        }),
-      },
-    });
-    const smsAttrs = new cr.AwsCustomResource(this, 'SmsDeliveryStatus', {
-      installLatestAwsSdk: false,
-      onUpdate: {
-        service: 'SNS',
-        action: 'setSMSAttributes',
-        parameters: {
-          attributes: {
-            DeliveryStatusIAMRole: smsLogRole.roleArn,
-            DeliveryStatusSuccessSamplingRate: '100',
-            DefaultSMSType: 'Transactional',
-          },
+    // Account-wide settings and an account-wide log group: only the live
+    // stack owns them, so a dev copy never fights it or breaks it on teardown.
+    if (stage === 'prod') {
+      const smsLogRole = new iam.Role(this, 'SmsDeliveryLogRole', {
+        assumedBy: new iam.ServicePrincipal('sns.amazonaws.com'),
+        inlinePolicies: {
+          logs: new iam.PolicyDocument({
+            statements: [new iam.PolicyStatement({
+              actions: ['logs:CreateLogGroup', 'logs:CreateLogStream', 'logs:PutLogEvents',
+                'logs:PutMetricFilter', 'logs:PutRetentionPolicy'],
+              resources: ['*'],
+            })],
+          }),
         },
-        physicalResourceId: cr.PhysicalResourceId.of('bms-sms-delivery-status'),
-      },
-      policy: cr.AwsCustomResourcePolicy.fromStatements([
-        new iam.PolicyStatement({ actions: ['sns:SetSMSAttributes'], resources: ['*'] }),
-        new iam.PolicyStatement({ actions: ['iam:PassRole'], resources: [smsLogRole.roleArn] }),
-      ]),
-    });
-    smsAttrs.node.addDependency(smsLogRole);
+      });
+      const smsAttrs = new cr.AwsCustomResource(this, 'SmsDeliveryStatus', {
+        installLatestAwsSdk: false,
+        onUpdate: {
+          service: 'SNS',
+          action: 'setSMSAttributes',
+          parameters: {
+            attributes: {
+              DeliveryStatusIAMRole: smsLogRole.roleArn,
+              DeliveryStatusSuccessSamplingRate: '100',
+              DefaultSMSType: 'Transactional',
+            },
+          },
+          physicalResourceId: cr.PhysicalResourceId.of('bms-sms-delivery-status'),
+        },
+        policy: cr.AwsCustomResourcePolicy.fromStatements([
+          new iam.PolicyStatement({ actions: ['sns:SetSMSAttributes'], resources: ['*'] }),
+          new iam.PolicyStatement({ actions: ['iam:PassRole'], resources: [smsLogRole.roleArn] }),
+        ]),
+      });
+      smsAttrs.node.addDependency(smsLogRole);
 
-    const account = cdk.Stack.of(this).account;
-    const region = cdk.Stack.of(this).region;
-    const smsFailures = new logs.LogGroup(this, 'SmsFailureLogs', {
-      logGroupName: `sns/${region}/${account}/DirectPublishToPhoneNumber/Failure`,
-      retention: logs.RetentionDays.ONE_MONTH,
-      removalPolicy: cdk.RemovalPolicy.DESTROY,
-    });
-    const smsFail = new logs.MetricFilter(this, 'SmsFailureFilter', {
-      logGroup: smsFailures,
-      metricNamespace: 'SnackDays',
-      metricName: 'sms-delivery-failed',
-      filterPattern: logs.FilterPattern.allEvents(),
-      metricValue: '1',
-      defaultValue: 0,
-    });
-    alarm('sms-delivery-failed', smsFail.metric({ period: cdk.Duration.minutes(5), statistic: 'Sum' }), {
-      description: 'A text message was accepted by AWS but not delivered. The log entry names the number and the carrier reason.',
-    });
+      const account = cdk.Stack.of(this).account;
+      const region = cdk.Stack.of(this).region;
+      const smsFailures = new logs.LogGroup(this, 'SmsFailureLogs', {
+        logGroupName: `sns/${region}/${account}/DirectPublishToPhoneNumber/Failure`,
+        retention: logs.RetentionDays.ONE_MONTH,
+        removalPolicy: cdk.RemovalPolicy.DESTROY,
+      });
+      const smsFail = new logs.MetricFilter(this, 'SmsFailureFilter', {
+        logGroup: smsFailures,
+        metricNamespace: 'SnackDays',
+        metricName: 'sms-delivery-failed',
+        filterPattern: logs.FilterPattern.allEvents(),
+        metricValue: '1',
+        defaultValue: 0,
+      });
+      alarm('sms-delivery-failed', smsFail.metric({ period: cdk.Duration.minutes(5), statistic: 'Sum' }), {
+        description: 'A text message was accepted by AWS but not delivered. The log entry names the number and the carrier reason.',
+      });
+    }
 
     /* ------------------------------------------ the bill */
     new budgets.CfnBudget(this, 'Budget', {
