@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
-import { api, type ClassList, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
+import { api, type Alert, type ClassList, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallPrompt } from '@/components/install-prompt';
@@ -14,6 +14,7 @@ import { Coverage } from '@/components/coverage';
 import { EventList } from '@/components/event-list';
 import { CurriculumCard, groupMatches, myClassroomsOf } from '@/components/newsletter';
 import { NewsletterDeck } from '@/components/newsletter-deck';
+import { AlertCard } from '@/components/alert-card';
 
 
 interface MineResponse { today: string; slots: Slot[] }
@@ -26,6 +27,7 @@ export default function HomePage() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [newsletters, setNewsletters] = useState<Newsletter[] | null>(null);
   const [extras, setExtras] = useState<CurriculumItem[]>([]);
+  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = me?.role === 'ADMIN';
@@ -44,6 +46,7 @@ export default function HomePage() {
       api.get<{ items: CurriculumItem[] }>('/api/curriculum').catch(() => ({ items: [] })),
     ]);
     setExtras(added.items);
+    api.get<{ alerts: Alert[] }>('/api/alerts').then((r) => setAlerts(r.alerts)).catch(() => undefined);
     setMine(m);
     setUnread(notes.unread);
     setNewsletters(news.newsletters);
@@ -85,6 +88,7 @@ export default function HomePage() {
   const eventMonth = eventsIn(thisMonth).length ? thisMonth : nextMonth;
   const events = eventsIn(eventMonth);
 
+  const recentAlerts = alerts.filter((a) => Date.now() - Date.parse(a.createdAt) < 2 * 864e5).slice(0, 2);
   const myClassrooms = myClassroomsOf(me);
   const latest = newsletters?.[0] ?? null;
   // The latest letter's curriculum for each of my groups, with whatever the
@@ -108,6 +112,18 @@ export default function HomePage() {
           {monthLabel(thisMonth).replace(/ \d{4}$/, '')} at BMS
         </h1>
       </header>
+
+      {/* Alerts from the last two days lead Home: "closed tomorrow" can't wait. */}
+      {recentAlerts.length > 0 && (
+        <section aria-label="Alerts" className="mb-4 space-y-2">
+          {recentAlerts.map((a) => (
+            <AlertCard key={a.alertId} alert={a} classroomNames={me?.classroomNames ?? {}} compact />
+          ))}
+          {alerts.length > recentAlerts.length && (
+            <Link href="/alerts/" className="block px-1 text-xs text-muted underline underline-offset-2">All alerts</Link>
+          )}
+        </section>
+      )}
 
       {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
       {flash && <div className="mb-3"><Banner tone="success">{flash}</Banner></div>}

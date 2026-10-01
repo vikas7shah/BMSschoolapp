@@ -24,6 +24,7 @@ export class Tables extends Construct {
   readonly loginChannels: ddb.Table;
   readonly newsletters: ddb.Table;
   readonly curriculum: ddb.Table;
+  readonly alerts: ddb.Table;
 
   constructor(scope: Construct, id: string, props: TablesProps) {
     super(scope, id);
@@ -170,6 +171,13 @@ export class Tables extends Construct {
       partitionKey: { name: 'schoolId', type: S },
       sortKey: { name: 'sk', type: S },
     });
+
+    // Alerts sent by teachers and the office, newest last by sort key.
+    this.alerts = new ddb.Table(this, 'Alerts', {
+      ...durable,
+      partitionKey: { name: 'schoolId', type: S },
+      sortKey: { name: 'sk', type: S },
+    });
   }
 
   /** Environment variables every backend function needs. */
@@ -188,6 +196,7 @@ export class Tables extends Construct {
       TABLE_LOGIN_CHANNEL: this.loginChannels.tableName,
       TABLE_NEWSLETTERS: this.newsletters.tableName,
       TABLE_CURRICULUM: this.curriculum.tableName,
+      TABLE_ALERTS: this.alerts.tableName,
     };
   }
 
@@ -195,7 +204,7 @@ export class Tables extends Construct {
     return [
       this.users, this.children, this.guardianships, this.classrooms, this.slots,
       this.schools, this.notifications, this.push, this.dedupe, this.rateLimit,
-      this.loginChannels, this.newsletters, this.curriculum,
+      this.loginChannels, this.newsletters, this.curriculum, this.alerts,
     ];
   }
 }

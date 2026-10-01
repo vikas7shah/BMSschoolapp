@@ -108,6 +108,20 @@ export interface Me {
   curriculumGroups?: string[];
 }
 
+/** An alert as the Alerts tab shows it. */
+export interface Alert {
+  alertId: string;
+  kind: 'CLOSURE' | 'EARLY_DISMISSAL' | 'REMINDER' | 'GENERAL';
+  title: string;
+  message: string;
+  audience: 'SCHOOL' | 'CLASSROOMS';
+  classroomIds: string[];
+  sentByName: string;
+  sentByRole: string;
+  recipients: number;
+  createdAt: string;
+}
+
 /** Something a teacher or the office added to a curriculum group's month. */
 export interface CurriculumItem {
   itemId: string;

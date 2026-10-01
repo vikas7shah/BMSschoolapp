@@ -3,7 +3,7 @@ import {
 } from '@aws-sdk/lib-dynamodb';
 import { ulid } from 'ulid';
 import type {
-  Child, ClassCurriculumItem, Classroom, Newsletter, NotificationRecord, PushSubscriptionRecord, School, SnackSlot, User,
+  Child, ClassCurriculumItem, Classroom, Newsletter, SchoolAlert, NotificationRecord, PushSubscriptionRecord, School, SnackSlot, User,
 } from '@bms/shared';
 import { DEFAULT_PREFS } from '@bms/shared';
 import { ddb, nowIso, ttlDays } from './ddb.js';
@@ -91,6 +91,23 @@ export async function putCurriculumItem(item: ClassCurriculumItem): Promise<void
 
 export async function deleteCurriculumItem(schoolId: string, sk: string): Promise<void> {
   await ddb.send(new DeleteCommand({ TableName: T.curriculum, Key: { schoolId, sk } }));
+}
+
+/* ------------------------------------------------------------------- alerts */
+
+export async function putAlert(a: SchoolAlert): Promise<void> {
+  await ddb.send(new PutCommand({ TableName: T.alerts, Item: a }));
+}
+
+/** Alerts sent since `sinceIso`, newest first. */
+export async function listAlerts(schoolId: string, sinceIso: string): Promise<SchoolAlert[]> {
+  const r = await ddb.send(new QueryCommand({
+    TableName: T.alerts,
+    KeyConditionExpression: 'schoolId = :s AND sk >= :from',
+    ExpressionAttributeValues: { ':s': schoolId, ':from': sinceIso },
+    ScanIndexForward: false,
+  }));
+  return (r.Items as SchoolAlert[]) ?? [];
 }
 
 /* --------------------------------------------------------------- classrooms */

@@ -68,6 +68,32 @@ export interface CurriculumGroup {
   subjects: Record<CurriculumSubject, string>;
 }
 
+/** What an alert is about; decides its colour and the template it starts from. */
+export type AlertKind = 'CLOSURE' | 'EARLY_DISMISSAL' | 'REMINDER' | 'GENERAL';
+
+/**
+ * A message from a teacher to their class, or from the office to the whole
+ * school or chosen classrooms: "School is closed tomorrow — snow day".
+ */
+export interface SchoolAlert {
+  schoolId: string;
+  /** "<createdAt>#<alertId>" — newest last; read in reverse. */
+  sk: string;
+  alertId: string;
+  kind: AlertKind;
+  title: string;
+  message: string;
+  audience: 'SCHOOL' | 'CLASSROOMS';
+  /** The classrooms it went to, when not the whole school. */
+  classroomIds: string[];
+  sentByUserId: string;
+  sentByName: string;
+  sentByRole: Role;
+  /** How many people it was delivered to. */
+  recipients: number;
+  createdAt: string;
+}
+
 /** Areas a teacher can add to; the newsletter's six first, then the Montessori areas. */
 export const CLASS_CURRICULUM_AREAS = [
   'Practical life', 'Sensorial', 'Language', 'Math',
@@ -207,7 +233,8 @@ export type NotificationType =
   | 'SLOT_CLAIMED'
   | 'SLOT_RELEASED'
   | 'WELCOME'
-  | 'ADMIN_BROADCAST';
+  | 'ADMIN_BROADCAST'
+  | 'ALERT';
 
 export type DeliveryResult = 'SENT' | 'FAILED' | 'SKIPPED';
 

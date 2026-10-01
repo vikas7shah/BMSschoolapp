@@ -152,6 +152,15 @@ export const curriculumGroupsSchema = z.object({
   groups: z.array(z.string().trim().min(1).max(60)).max(10),
 });
 
+/** An alert as the sender writes it. */
+export const alertSchema = z.object({
+  kind: z.enum(['CLOSURE', 'EARLY_DISMISSAL', 'REMINDER', 'GENERAL']),
+  title: z.string().trim().min(1, 'Add a title').max(80, 'Keep the title under 80 characters'),
+  message: z.string().trim().min(1, 'Write the message').max(600, 'Keep the message under 600 characters'),
+  audience: z.enum(['SCHOOL', 'CLASSROOMS']),
+  classroomIds: z.array(z.string().min(1)).max(20).default([]),
+});
+
 export const generateSlotsSchema = z.object({
   classroomId: z.string().min(1),
   from: civilDateSchema,

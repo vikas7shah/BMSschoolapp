@@ -6,6 +6,7 @@ import { useSession } from '@/lib/session';
 
 const ITEMS = [
   { href: '/', label: 'Home', icon: HomeIcon },
+  { href: '/alerts/', label: 'Alerts', icon: BellIcon },
   { href: '/snacks/', label: 'Snacks', icon: AppleIcon },
   { href: '/calendar/', label: 'Calendar', icon: CalendarIcon },
   { href: '/news/', label: 'News', icon: NewsIcon },
@@ -18,16 +19,19 @@ export function BottomNav() {
   const items = me?.role === 'ADMIN'
     ? [...ITEMS, { href: '/admin/', label: 'Admin', icon: GridIcon } as const]
     : me?.role === 'TEACHER'
-      // A teacher's class list and curriculum sit next to Home; Snacks stays,
-      // read-only. Six fit a phone, so the school calendar is reached from
-      // its tile on Home rather than a tab.
+      // A teacher's class list and curriculum sit after Alerts; Snacks stays,
+      // read-only. The school calendar is reached from its tile on Home
+      // rather than a tab, to keep the bar to seven.
       ? [
-        ITEMS[0],
+        ITEMS[0], ITEMS[1],
         { href: '/class/', label: 'Class', icon: ClassIcon } as const,
         { href: '/curriculum/', label: 'Curriculum', icon: BookIcon } as const,
-        ITEMS[1], ITEMS[3], ITEMS[4],
+        ITEMS[2], ITEMS[4], ITEMS[5],
       ]
       : ITEMS;
+
+  // Seven tabs only fit a phone with slightly smaller labels.
+  const compact = items.length > 6;
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href.replace(/\/$/, ''));
@@ -46,7 +50,7 @@ export function BottomNav() {
               <Link
                 href={href}
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 text-[11px]
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 ${compact ? 'text-[10px] tracking-tight' : 'text-[11px]'}
                             font-medium transition-colors
                             ${active ? 'text-sage' : 'text-muted hover:text-ink'}`}
               >
@@ -110,6 +114,16 @@ function AppleIcon({ filled }: IconProps) {
       <path d="M12 8c-1.6-1.4-4.1-1.3-5.6.4C4.2 10.9 4.8 15.6 7.6 18.8c1.3 1.5 2.7 1.7 4.4.9 1.7.8 3.1.6 4.4-.9 2.8-3.2 3.4-7.9 1.2-10.4C16.1 6.7 13.6 6.6 12 8Z" />
       <path d="M12 8V5.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
       <path d="M12 5.5c.5-1.5 2-2.5 3.5-2.5 0 1.5-1 3-3.5 3" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A bell — alerts from the school. */
+function BellIcon({ filled }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className="size-6" aria-hidden {...(filled ? { fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.2 } : stroke)}>
+      <path d="M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z" />
+      <path d="M10 20.5a2 2 0 0 0 4 0" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
     </svg>
   );
 }
