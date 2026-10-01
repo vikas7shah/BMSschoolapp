@@ -1,6 +1,7 @@
 /** Core domain types shared by the API, reminder jobs and the web client. */
 
-export type Role = 'PARENT' | 'ADMIN';
+/** A teacher sees their own classrooms, read-only; they never book or edit. */
+export type Role = 'PARENT' | 'ADMIN' | 'TEACHER';
 export type UserStatus = 'INVITED' | 'ACTIVE' | 'DISABLED';
 
 export type SlotStatus = 'OPEN' | 'CLAIMED';
@@ -122,6 +123,8 @@ export interface User {
   extraPhones?: string[];
   /** Further addresses the school holds. Sign-in uses `email`. */
   extraEmails?: string[];
+  /** For a teacher: the classrooms they teach, and so may see. */
+  teachesClassroomIds?: string[];
   status: UserStatus;
   prefs: ChannelPrefs;
   createdAt: string;
@@ -214,6 +217,8 @@ export interface SessionUser {
   prefs: ChannelPrefs;
   children: Child[];
   classroomIds: string[];
-  /** Names of the classrooms the children are in, keyed by id. */
+  /** Names of every classroom in the school, keyed by id. */
   classroomNames: Record<string, string>;
+  /** For a teacher: the classrooms they teach. */
+  teaches?: string[];
 }

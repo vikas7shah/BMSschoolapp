@@ -55,11 +55,13 @@ export interface CalendarProps {
   isAdmin: boolean;
   /** The child a parent is booking for; names them on the button. */
   forChildName?: string | null;
+  /** A teacher: sees who is bringing snacks, can't book or release. */
+  readOnly?: boolean;
 }
 
 export function SnackCalendar({
   today, slots, classroomId, busyDate, onClaim, onRelease, onRemindTomorrow, childOptions, canClaim, initialDate,
-  classroomFull, isAdmin, forChildName, existingThisMonth,
+  classroomFull, isAdmin, forChildName, existingThisMonth, readOnly,
 }: CalendarProps) {
   const [month, setMonth] = useState(clampMonth(monthOf(initialDate ?? today)));
   const [selected, setSelected] = useState<CivilDate | null>(initialDate ?? null);
@@ -179,6 +181,7 @@ export function SnackCalendar({
           onRemindTomorrow={onRemindTomorrow}
           classroomFull={classroomFull}
           isAdmin={isAdmin}
+          readOnly={readOnly}
           forChildName={forChildName ?? null}
           switchFrom={existingThisMonth(selected)}
         />
@@ -189,8 +192,9 @@ export function SnackCalendar({
 
 function DayDetail({
   date, today, slot, busy, canClaim, childOptions, childId, onPickChild, onClose, onClaim, onRelease,
-  onRemindTomorrow, classroomFull, isAdmin, forChildName, switchFrom,
+  onRemindTomorrow, classroomFull, isAdmin, forChildName, switchFrom, readOnly,
 }: {
+  readOnly?: boolean;
   date: CivilDate; today: CivilDate; slot?: Slot; busy: boolean; canClaim: boolean;
   forChildName: string | null;
   switchFrom: CivilDate | null;
@@ -232,6 +236,9 @@ function DayDetail({
                   : `${slot.claimedForChildName ?? slot.claimedByName}'s family ${past ? 'brought' : 'is bringing'} snacks`
                 : past ? 'Nobody signed up' : 'Nobody has signed up yet'}
           </p>
+          {readOnly && slot?.status === 'CLAIMED' && slot.claimedByName && (
+            <p className="mt-0.5 text-xs text-muted">Signed up by {slot.claimedByName}</p>
+          )}
         </div>
         <button
           type="button"
@@ -243,7 +250,7 @@ function DayDetail({
         </button>
       </div>
 
-      {slot && !past && (
+      {slot && !past && !readOnly && (
         <div className="mt-4">
           {slot.isMine ? (
             <>

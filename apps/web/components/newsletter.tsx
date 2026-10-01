@@ -74,7 +74,8 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
   const others = newsletter.curriculum.filter((g) => !mine.includes(g));
   const tagFor = (g: CurriculumGroup) => {
     const entry = [...myClassrooms.entries()].find(([n]) => groupMatches(g.group, n));
-    return entry ? `${entry[1]}’s class` : undefined;
+    if (!entry) return undefined;
+    return entry[1] === 'Your class' ? entry[1] : `${entry[1]}’s class`;
   };
 
   return (
@@ -127,9 +128,20 @@ export function NewsletterArticle({ newsletter, myClassrooms }: {
   );
 }
 
-/** Which classrooms are "mine", by name, with the child to tag them with. */
-export function myClassroomsOf(me: { children: { firstName: string; classroomId: string }[]; classroomNames: Record<string, string> } | null) {
+/**
+ * Which classrooms are "mine", by name, with the child to tag them with — or,
+ * for a teacher, the rooms they teach, tagged as theirs.
+ */
+export function myClassroomsOf(me: {
+  children: { firstName: string; classroomId: string }[];
+  classroomNames: Record<string, string>;
+  teaches?: string[];
+} | null) {
   const m = new Map<string, string>();
+  for (const id of me?.teaches ?? []) {
+    const name = me?.classroomNames[id];
+    if (name) m.set(name, 'Your class');
+  }
   for (const k of me?.children ?? []) {
     const name = me?.classroomNames[k.classroomId];
     if (name && !m.has(name)) m.set(name, k.firstName);

@@ -9,6 +9,10 @@ import type { Vars } from '../app.js';
 
 const route = new Hono<{ Variables: Vars }>();
 
+/** A teacher's rooms, leaving out any classroom since removed. */
+const taughtRooms = (user: Vars['user'], rooms: { classroomId: string }[]) =>
+  (user.teachesClassroomIds ?? []).filter((id) => rooms.some((r) => r.classroomId === id));
+
 const endpointId = (endpoint: string) =>
   createHash('sha256').update(endpoint).digest('hex').slice(0, 32);
 
@@ -28,6 +32,7 @@ route.get('/api/me', async (c) => {
     children,
     classroomIds: [...new Set(children.map((k) => k.classroomId))],
     classroomNames: Object.fromEntries(rooms.map((r) => [r.classroomId, r.name])),
+    ...(user.role === 'TEACHER' ? { teaches: taughtRooms(user, rooms) } : {}),
   };
   return c.json(payload);
 });

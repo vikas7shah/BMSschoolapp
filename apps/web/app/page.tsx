@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
-import { api, type Notification, type OverviewData, type Slot } from '@/lib/api';
+import { api, type ClassList, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallPrompt } from '@/components/install-prompt';
@@ -28,9 +28,12 @@ export default function HomePage() {
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = me?.role === 'ADMIN';
-  // An admin's Home is the school, not a family: the parent cards only appear
-  // if this admin also has children on the roster.
-  const isParent = !isAdmin || (me?.children.length ?? 0) > 0;
+  const isTeacher = me?.role === 'TEACHER';
+  // An admin's or a teacher's Home is the school, not a family: the parent
+  // cards only appear if they also have children on the roster.
+  const isParent = me?.role === 'PARENT' || (me?.children.length ?? 0) > 0;
+  const [classes, setClasses] = useState<ClassList[] | null>(null);
+  const [board, setBoard] = useState<SnackBoard | null>(null);
 
   const load = useCallback(async () => {
     const [m, notes, news] = await Promise.all([
@@ -49,6 +52,16 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => { if (isAdmin) void loadOverview().catch(() => undefined); }, [isAdmin, loadOverview]);
+
+  // A teacher's Home leads with their class: who is in it, and whose turn
+  // it is to bring snacks.
+  useEffect(() => {
+    if (!isTeacher) return;
+    void Promise.all([
+      api.get<{ classrooms: ClassList[] }>('/api/class').then((r) => setClasses(r.classrooms)),
+      api.get<SnackBoard>('/api/snacks').then(setBoard),
+    ]).catch(() => undefined);
+  }, [isTeacher]);
 
   useEffect(() => { void load().catch(() => setLoading(false)); }, [load]);
 
@@ -97,6 +110,17 @@ export default function HomePage() {
       <div className="grid gap-4 [grid-auto-rows:236px] [grid-template-columns:repeat(auto-fit,minmax(280px,1fr))]">
         {isAdmin && (overview
           ? <Coverage overview={overview} tile onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
+          : <Skeleton className="h-full" />)}
+
+        {isTeacher && (classes
+          ? classes.map((room) => (
+            <ClassTile
+              key={room.classroomId}
+              room={room}
+              board={board}
+              teachers={latest?.curriculum.find((g) => groupMatches(g.group, room.name))?.teachers}
+            />
+          ))
           : <Skeleton className="h-full" />)}
 
         {isParent && (loading ? (
@@ -179,6 +203,67 @@ export default function HomePage() {
       <InstallPrompt />
     </Shell>
   );
+}
+
+/** A teacher's classroom on Home: who's in it, and the next snack days. */
+function ClassTile({ room, board, teachers }: { room: ClassList; board: SnackBoard | null; teachers?: string }) {
+  const parents = new Set(room.children.flatMap((k) => k.parents.map((p) => p.phone ?? p.email ?? p.firstName))).size;
+  const upcoming = (board?.slots ?? [])
+    .filter((s) => s.classroomId === room.classroomId && s.date >= board!.today)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(0, 3);
+  const month = board ? monthOf(board.today) : null;
+  const thisMonth = (board?.slots ?? []).filter((s) => s.classroomId === room.classroomId && monthOf(s.date) === month);
+  const taken = thisMonth.filter((s) => s.status === 'CLAIMED').length;
+  return (
+    <>
+      <Tile label="Your class" tone="sage">
+        <p className="mt-1 font-serif text-[26px] font-semibold leading-tight">{room.name}</p>
+        <p className="mt-1 text-[14px] text-white/85">
+          {room.children.length} {room.children.length === 1 ? 'child' : 'children'} · {parents} {parents === 1 ? 'parent' : 'parents'}
+        </p>
+        {teachers && <p className="mt-0.5 truncate text-[13px] text-white/70">{teachers}</p>}
+        {thisMonth.length > 0 && (
+          <div className="mt-3">
+            <p className="text-[12px] text-white/80">
+              {monthLabel(month!).replace(/ \d{4}$/, '')} snack days: {taken} of {thisMonth.length} taken
+            </p>
+            <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-white/20">
+              <div className="h-full rounded-full bg-white" style={{ width: `${(taken / thisMonth.length) * 100}%` }} />
+            </div>
+          </div>
+        )}
+        <div className="mt-auto flex flex-wrap gap-2 pt-3">
+          <Link href="/class/"><Button size="sm" variant="secondary">Class list</Button></Link>
+        </div>
+      </Tile>
+      <Tile label="Snacks coming up">
+        {!board ? (
+          <Skeleton className="mt-2 flex-1" />
+        ) : upcoming.length ? (
+          <ul className="mt-2 flex min-h-0 flex-1 flex-col gap-1.5">
+            {upcoming.map((s) => (
+              <li key={s.date} className="flex items-baseline justify-between gap-3 rounded-xl bg-cream px-3 py-2">
+                <span className="shrink-0 text-[13px] text-muted">{dayLabel(s.date, board.today)}</span>
+                <span className={`truncate text-sm font-semibold ${s.status === 'CLAIMED' ? 'text-ink' : 'text-clay'}`}>
+                  {s.status === 'CLAIMED' ? `${s.claimedForChildName ?? s.claimedByName}’s family` : 'Nobody yet'}
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="mt-1 text-sm text-muted">No snack days coming up.</p>
+        )}
+        <Link href="/snacks/" className="mt-2 self-start text-xs text-muted underline underline-offset-2">Snack calendar</Link>
+      </Tile>
+    </>
+  );
+}
+
+/** "Today", "Tomorrow", else "Tue, Oct 6". */
+function dayLabel(date: string, today: string): string {
+  const rel = relativeLabel(date, today);
+  return rel === 'Today' || rel === 'Tomorrow' ? rel : formatShort(date);
 }
 
 /** First of the month `n` months after the given date's. */

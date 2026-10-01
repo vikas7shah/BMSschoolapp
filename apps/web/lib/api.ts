@@ -93,7 +93,7 @@ export interface SnackBoard {
 export interface Me {
   userId: string;
   schoolId: string;
-  role: 'PARENT' | 'ADMIN';
+  role: 'PARENT' | 'ADMIN' | 'TEACHER';
   firstName: string;
   lastName: string;
   phone: string;
@@ -102,6 +102,27 @@ export interface Me {
   children: { childId: string; firstName: string; lastName: string; classroomId: string }[];
   classroomIds: string[];
   classroomNames: Record<string, string>;
+  /** For a teacher: the classrooms they teach. */
+  teaches?: string[];
+}
+
+/** One classroom as a teacher sees it: every child, and how to reach their parents. */
+export interface ClassList {
+  classroomId: string;
+  name: string;
+  children: {
+    childId: string;
+    firstName: string;
+    lastName: string;
+    parents: {
+      firstName: string;
+      lastName: string;
+      phone?: string;
+      email?: string;
+      extraPhones?: string[];
+      extraEmails?: string[];
+    }[];
+  }[];
 }
 
 export interface Notification {

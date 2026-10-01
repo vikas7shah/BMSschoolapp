@@ -147,6 +147,7 @@ export async function listUsers(schoolId: string): Promise<User[]> {
 export async function createUser(input: {
   schoolId: string; role: User['role']; firstName: string; lastName: string;
   phone?: string; email?: string; extraPhones?: string[]; extraEmails?: string[];
+  teachesClassroomIds?: string[];
 }): Promise<User> {
   const now = nowIso();
   const userId = ulid();
@@ -175,7 +176,7 @@ export async function updateUser(
   userId: string,
   patch: Partial<Pick<User,
     'firstName' | 'lastName' | 'email' | 'phone' | 'prefs' | 'status' | 'lastLoginAt' | 'role'
-    | 'extraPhones' | 'extraEmails' | 'cognitoUsername'>>,
+    | 'extraPhones' | 'extraEmails' | 'cognitoUsername' | 'teachesClassroomIds'>>,
   /**
    * Attributes to delete. Phone and email are index keys, which DynamoDB will
    * not store as an empty string, so clearing one has to remove it.

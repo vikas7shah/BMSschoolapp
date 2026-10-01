@@ -29,3 +29,23 @@ export const requireAdmin: MiddlewareHandler<Env> = async (c, next) => {
   await next();
   return undefined;
 };
+
+/**
+ * Teachers have read-only access: they can look at their classroom but never
+ * book, release or change anything. Enforced here, not just hidden in the app.
+ */
+export const readOnlyForTeachers: MiddlewareHandler<Env> = async (c, next) => {
+  if (c.get('user')?.role === 'TEACHER' && c.req.method !== 'GET') {
+    return c.json({ error: 'Teachers have read-only access' }, 403);
+  }
+  await next();
+  return undefined;
+};
+
+/** The class list: a teacher's own rooms, or any room for the office. */
+export const requireStaff: MiddlewareHandler<Env> = async (c, next) => {
+  const role = c.get('user')?.role;
+  if (role !== 'TEACHER' && role !== 'ADMIN') return c.json({ error: 'Staff only' }, 403);
+  await next();
+  return undefined;
+};

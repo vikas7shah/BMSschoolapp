@@ -88,17 +88,35 @@ export default function MePage() {
   }
 
   if (!me || !prefs) return <Shell><div /></Shell>;
+  const isTeacher = me.role === 'TEACHER';
 
   return (
     <Shell>
-      <PageHeader title="You" subtitle={`${me.firstName} ${me.lastName} · ${me.phone}`} />
+      <PageHeader title="You" subtitle={[`${me.firstName} ${me.lastName}`, me.phone].filter(Boolean).join(' · ')} />
 
       <Card>
-        <h2 className="font-semibold text-ink">Email &amp; reminders</h2>
+        <h2 className="font-semibold text-ink">{isTeacher ? 'Email' : 'Email & reminders'}</h2>
         <p className="mt-1 text-sm text-muted">
-          We&apos;ll remind you 2 days before your snack day, and at the start of the month if you haven&apos;t picked one.
+          {isTeacher
+            ? 'Teachers don’t get snack reminders. Your sign-in code is sent to this address.'
+            : 'We’ll remind you 2 days before your snack day, and at the start of the month if you haven’t picked one.'}
         </p>
 
+        {isTeacher ? (
+          <div className="mt-4">
+            <Field label="Email address">
+              <input
+                className={inputClass}
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                onBlur={() => void save(prefs, email)}
+                placeholder="you@example.com"
+              />
+            </Field>
+          </div>
+        ) : (
         <ul className="mt-4 divide-y divide-line">
           {SHOWN.map((channel) => (
             <li key={channel} className="py-3">
@@ -143,13 +161,14 @@ export default function MePage() {
             </li>
           ))}
         </ul>
+        )}
 
-        {!pushSupported() && (
+        {!isTeacher && !pushSupported() && (
           <p className="mt-4 text-xs text-muted">
             Push notifications aren&apos;t available in this browser.
           </p>
         )}
-        {pushSupported() && needsHomeScreenInstall() && !prefs.push && (
+        {!isTeacher && pushSupported() && needsHomeScreenInstall() && !prefs.push && (
           <div className="mt-4">
             <Banner tone="warn">
               To get push notifications on iPhone, tap Share then &ldquo;Add to Home Screen&rdquo;,
@@ -162,6 +181,18 @@ export default function MePage() {
 
       <div className="mt-4"><InstallCard /></div>
 
+      {isTeacher ? (
+        <Card className="mt-4">
+          <h2 className="font-semibold text-ink">Your {me.teaches && me.teaches.length > 1 ? 'classrooms' : 'classroom'}</h2>
+          <ul className="mt-3 space-y-1.5">
+            {(me.teaches ?? []).map((id) => (
+              <li key={id} className="text-sm text-ink">{me.classroomNames[id]}</li>
+            ))}
+            {!me.teaches?.length && <li className="text-sm text-muted">None yet — ask the office to add yours.</li>}
+          </ul>
+          <p className="mt-3 text-xs text-muted">You can see your class, read-only. The office makes any changes.</p>
+        </Card>
+      ) : (
       <Card className="mt-4">
         <h2 className="font-semibold text-ink">Your children</h2>
         <ul className="mt-3 space-y-1.5">
@@ -175,6 +206,7 @@ export default function MePage() {
           ))}
         </ul>
       </Card>
+      )}
 
       <section className="mt-4">
         <h2 className="mb-3 px-1 font-semibold text-ink">Messages</h2>

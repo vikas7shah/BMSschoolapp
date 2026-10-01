@@ -17,7 +17,10 @@ export function BottomNav() {
   const { me } = useSession();
   const items = me?.role === 'ADMIN'
     ? [...ITEMS, { href: '/admin/', label: 'Admin', icon: GridIcon } as const]
-    : ITEMS;
+    : me?.role === 'TEACHER'
+      // A teacher's class list sits next to Home; Snacks stays, read-only.
+      ? [ITEMS[0], { href: '/class/', label: 'Class', icon: ClassIcon } as const, ...ITEMS.slice(1)]
+      : ITEMS;
 
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href.replace(/\/$/, ''));
@@ -100,6 +103,19 @@ function AppleIcon({ filled }: IconProps) {
       <path d="M12 8c-1.6-1.4-4.1-1.3-5.6.4C4.2 10.9 4.8 15.6 7.6 18.8c1.3 1.5 2.7 1.7 4.4.9 1.7.8 3.1.6 4.4-.9 2.8-3.2 3.4-7.9 1.2-10.4C16.1 6.7 13.6 6.6 12 8Z" />
       <path d="M12 8V5.5" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
       <path d="M12 5.5c.5-1.5 2-2.5 3.5-2.5 0 1.5-1 3-3.5 3" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Three heads — a class. */
+function ClassIcon({ filled }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className="size-6" aria-hidden {...(filled ? { fill: 'currentColor', stroke: 'currentColor', strokeWidth: 1.2 } : stroke)}>
+      <circle cx="12" cy="7.5" r="2.8" />
+      <circle cx="5.5" cy="10" r="2.2" />
+      <circle cx="18.5" cy="10" r="2.2" />
+      <path d="M7 19.5a5 5 0 0 1 10 0z" />
+      <path d="M2 18.5a3.6 3.6 0 0 1 4.6-3.4M22 18.5a3.6 3.6 0 0 0-4.6-3.4" fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" />
     </svg>
   );
 }

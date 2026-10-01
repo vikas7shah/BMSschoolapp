@@ -127,6 +127,18 @@ export const inviteParentSchema = z.object({
     .default([]),
 });
 
+/**
+ * A teacher the office adds. Either a mobile number or an email is enough to
+ * sign in; at least one classroom, since a teacher only sees the rooms they teach.
+ */
+export const teacherSchema = z.object({
+  firstName: z.string().trim().min(1, 'Enter a first name').max(60),
+  lastName: z.string().trim().max(60).default(''),
+  phone: z.string().trim().optional().or(z.literal('')),
+  email: z.string().trim().email('That is not a valid email address').optional().or(z.literal('')),
+  classroomIds: z.array(z.string().min(1)).min(1, 'Choose at least one classroom'),
+});
+
 export const generateSlotsSchema = z.object({
   classroomId: z.string().min(1),
   from: civilDateSchema,
