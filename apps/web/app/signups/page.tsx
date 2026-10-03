@@ -253,29 +253,25 @@ function Sheet({ signup, isAdmin, rooms, names, reload }: {
                     <span className={`text-xs ${s.booked >= s.capacity ? 'text-sage-dark' : 'text-muted'}`}>{s.booked} of {s.capacity}</span>
                   </div>
                   {(s.bookings ?? []).map((b) => (
-                    <div key={b.childId} className="mt-1.5 flex items-center justify-between gap-2 text-sm">
-                      <span className="min-w-0 truncate">
-                        {b.parentName} <span className="text-muted">— {b.childName}</span>
-                        {b.byOffice && <span className="ml-1.5 text-[11px] text-muted">(office)</span>}
-                      </span>
-                      <span className="flex shrink-0 items-center gap-3 text-xs print:hidden">
+                    <div key={b.childId} className="mt-2.5">
+                      <p className="text-sm text-ink">
+                        <span className="font-medium">{b.parentName}</span>
+                        <span className="text-muted"> · {b.childName}</span>
+                        {b.byOffice && <span className="ml-1.5 text-[11px] text-muted">added by the office</span>}
+                      </p>
+                      <p className="mt-0.5 flex items-center gap-4 text-xs font-medium print:hidden">
                         {b.email && <a href={`mailto:${b.email}`} className="text-sage underline underline-offset-2">Email</a>}
                         {isAdmin && (
                           <>
-                            <select
-                              aria-label={`Move ${b.childName}`}
+                            <LinkSelect
+                              label="Move"
                               disabled={busy}
-                              className="max-w-24 rounded-lg border border-line bg-surface px-1.5 py-1 text-xs"
-                              value=""
-                              onChange={(e) => e.target.value && void act('book', { slotId: e.target.value, childId: b.childId }, `Moved ${b.childName}.`)}
-                            >
-                              <option value="">Move…</option>
-                              {slots.filter((x) => x.slotId !== s.slotId).map((x) => (
-                                <option key={x.slotId} value={x.slotId}>
-                                  {formatShort(x.date)} {clockRange(x.start, x.end)}{x.booked >= x.capacity ? ' (full)' : ''}
-                                </option>
-                              ))}
-                            </select>
+                              options={slots.filter((x) => x.slotId !== s.slotId).map((x) => ({
+                                value: x.slotId,
+                                label: `${formatShort(x.date)} ${clockRange(x.start, x.end)}${x.booked >= x.capacity ? ' (full)' : ''}`,
+                              }))}
+                              onPick={(slotId) => void act('book', { slotId, childId: b.childId }, `Moved ${b.childName}.`)}
+                            />
                             <button
                               type="button"
                               disabled={busy}
@@ -286,23 +282,19 @@ function Sheet({ signup, isAdmin, rooms, names, reload }: {
                             </button>
                           </>
                         )}
-                      </span>
+                      </p>
                     </div>
                   ))}
                   {s.booked < s.capacity && s.capacity === 1 && <p className="mt-1 text-sm text-muted">Open</p>}
                   {isAdmin && (
-                    <div className="mt-2 flex flex-wrap items-center gap-3 text-xs print:hidden">
+                    <div className="mt-3 flex items-center gap-4 border-t border-line pt-2.5 text-xs font-medium print:hidden">
                       {waiting.length > 0 && (
-                        <select
-                          aria-label="Add a family"
+                        <LinkSelect
+                          label="+ Add a family"
                           disabled={busy}
-                          className="rounded-lg border border-line bg-surface px-1.5 py-1 text-xs"
-                          value=""
-                          onChange={(e) => e.target.value && void act('book', { slotId: s.slotId, childId: e.target.value }, 'Family added.')}
-                        >
-                          <option value="">Add a family…</option>
-                          {waiting.map((k) => <option key={k.childId} value={k.childId}>{k.name}</option>)}
-                        </select>
+                          options={waiting.map((k) => ({ value: k.childId, label: k.name }))}
+                          onPick={(childId) => void act('book', { slotId: s.slotId, childId }, 'Family added.')}
+                        />
                       )}
                       <button
                         type="button"
@@ -310,7 +302,7 @@ function Sheet({ signup, isAdmin, rooms, names, reload }: {
                         onClick={() => void act('seats', { slotId: s.slotId, capacity: s.capacity + 1 }, 'Added a seat.')}
                         className="text-sage underline underline-offset-2"
                       >
-                        + seat
+                        + Seat
                       </button>
                     </div>
                   )}
@@ -334,5 +326,33 @@ function Sheet({ signup, isAdmin, rooms, names, reload }: {
         </p>
       </Card>
     </>
+  );
+}
+
+/**
+ * A dropdown that looks like a text link. The real select sits invisibly over
+ * the label, so a tap opens the phone's own picker without the oversized box
+ * a visible select gets on iOS.
+ */
+function LinkSelect({ label, options, onPick, disabled }: {
+  label: string;
+  options: { value: string; label: string }[];
+  onPick: (value: string) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <label className="relative -my-2 inline-flex cursor-pointer py-2 text-sage underline underline-offset-2">
+      {label}
+      <select
+        aria-label={label}
+        disabled={disabled}
+        value=""
+        onChange={(e) => e.target.value && onPick(e.target.value)}
+        className="absolute inset-0 cursor-pointer opacity-0"
+      >
+        <option value="">{label}</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </label>
   );
 }
