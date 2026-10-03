@@ -218,7 +218,7 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
               onClick={() => setRoom(id)}
               className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${id === room ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
             >
-              {nameOf(id)} · {signup.slots.filter((s) => s.classroomId === id).length}
+              {nameOf(id)} · {(() => { const n = signup.slots.filter((s) => s.classroomId === id).length; return n ? `${n} ${n === 1 ? 'time' : 'times'}` : 'no times yet'; })()}
             </button>
           ))}
         </div>
@@ -230,7 +230,7 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {roomSlots.filter((s) => s.date === d).sort((a, b) => a.start.localeCompare(b.start)).map((s) => (
                   <span key={s.slotId} className="inline-flex items-center gap-1 rounded-full bg-sage-soft px-2.5 py-1 text-xs text-sage-dark">
-                    {clock(s.start)}{s.booked ? ` · ${s.booked}` : ''}
+                    {clock(s.start)}{s.booked ? ` · ${s.booked} booked` : ''}
                     <button
                       type="button"
                       aria-label={`Remove ${clock(s.start)}`}
