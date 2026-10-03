@@ -24,6 +24,7 @@ export const env = {
     newsletters: req('TABLE_NEWSLETTERS'),
     curriculum: req('TABLE_CURRICULUM'),
     alerts: req('TABLE_ALERTS'),
+    signups: req('TABLE_SIGNUPS'),
   },
   cognito: {
     userPoolId: req('COGNITO_USER_POOL_ID'),

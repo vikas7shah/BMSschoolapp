@@ -8,6 +8,7 @@ import newsletterRoutes from './routes/newsletters.js';
 import classRoutes from './routes/class.js';
 import curriculumRoutes from './routes/curriculum.js';
 import alertRoutes from './routes/alerts.js';
+import signupRoutes from './routes/signups.js';
 
 const app = createApp();
 
@@ -45,6 +46,8 @@ app.use('/api/curriculum', authenticate);
 app.use('/api/curriculum/*', authenticate);
 app.use('/api/alerts', authenticate);
 app.use('/api/alerts/*', authenticate);
+app.use('/api/signups', authenticate);
+app.use('/api/signups/*', authenticate);
 app.use('/api/admin/*', authenticate, requireAdmin);
 
 app.route('/', meRoutes);
@@ -54,6 +57,7 @@ app.route('/', newsletterRoutes);
 app.route('/', classRoutes);
 app.route('/', curriculumRoutes);
 app.route('/', alertRoutes);
+app.route('/', signupRoutes);
 
 app.notFound((c) => c.json({ error: 'Not found' }, 404));
 

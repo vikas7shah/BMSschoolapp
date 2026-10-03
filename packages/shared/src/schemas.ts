@@ -161,6 +161,28 @@ export const alertSchema = z.object({
   classroomIds: z.array(z.string().min(1)).max(20).default([]),
 });
 
+const hhmm = z.string().regex(/^\d{2}:\d{2}$/, 'Times look like 08:30');
+const civil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates look like 2026-12-01');
+
+/** A new sign-up, or changes to one. */
+export const signupEventSchema = z.object({
+  kind: z.enum(['CONFERENCE', 'OBSERVATION']),
+  title: z.string().trim().min(1, 'Give it a name').max(80),
+  classroomIds: z.array(z.string().min(1)).min(1, 'Choose at least one classroom'),
+  slotMinutes: z.number().int().min(5).max(120),
+  capacity: z.number().int().min(1).max(30),
+  closesOn: civil.optional().or(z.literal('')),
+  location: z.string().trim().max(80).default('In person'),
+});
+
+/** Hours to fill with times: 8:00 → 11:20 makes ten 20-minute times. */
+export const signupHoursSchema = z.object({
+  classroomId: z.string().min(1),
+  date: civil,
+  start: hhmm,
+  end: hhmm,
+});
+
 export const generateSlotsSchema = z.object({
   classroomId: z.string().min(1),
   from: civilDateSchema,

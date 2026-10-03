@@ -108,6 +108,38 @@ export interface Me {
   curriculumGroups?: string[];
 }
 
+/** One time in a sign-up. Staff get `bookings`; a family gets `mine`. */
+export interface SignupSlotView {
+  slotId: string;
+  classroomId: string;
+  date: string;
+  start: string;
+  end: string;
+  capacity: number;
+  booked: number;
+  bookings?: { childId: string; childName: string; parentName: string; email?: string; phone?: string; byOffice: boolean }[];
+  mine?: string[];
+}
+
+/** A conference or observation sign-up, as the viewer may see it. */
+export interface Signup {
+  eventId: string;
+  kind: 'CONFERENCE' | 'OBSERVATION';
+  title: string;
+  status: 'DRAFT' | 'OPEN' | 'CLOSED';
+  classroomIds: string[];
+  slotMinutes: number;
+  capacity: number;
+  location: string;
+  closesOn: string | null;
+  setClosesOn: string | null;
+  /** Families can still book or switch. */
+  open: boolean;
+  slots: SignupSlotView[];
+  children: { childId: string; firstName: string; classroomId: string; slotId: string | null }[];
+  notBooked?: { childId: string; name: string; classroomId: string; parents: string[] }[];
+}
+
 /** An alert as the Alerts tab shows it. */
 export interface Alert {
   alertId: string;

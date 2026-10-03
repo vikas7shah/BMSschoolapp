@@ -102,14 +102,27 @@ route.post('/api/alerts', async (c) => {
     return c.json({ error: 'That is a lot of alerts in an hour. Please try again later.' }, 429);
   }
 
+  const alert = await sendAlert(user, { ...d, classroomIds });
+  return c.json({ alert: view(alert) }, 201);
+});
+
+/**
+ * Sends an alert and records it: delivered in the app and by email/push to
+ * everyone it reaches, and listed in the Alerts tab. Also how a published
+ * sign-up is announced.
+ */
+export async function sendAlert(user: User, d: {
+  kind: SchoolAlert['kind']; title: string; message: string;
+  audience: SchoolAlert['audience']; classroomIds: string[];
+}, link = '/alerts/'): Promise<SchoolAlert> {
   const [school, rooms, people] = await Promise.all([
     getSchool(user.schoolId), listClassrooms(user.schoolId),
-    recipientsFor(user.schoolId, d.audience, classroomIds, user.userId),
+    recipientsFor(user.schoolId, d.audience, d.classroomIds, user.userId),
   ]);
   const schoolName = school?.name ?? 'School';
   const to = d.audience === 'SCHOOL'
     ? 'the whole school'
-    : rooms.filter((r) => classroomIds.includes(r.classroomId)).map((r) => r.name).join(', ');
+    : rooms.filter((r) => d.classroomIds.includes(r.classroomId)).map((r) => r.name).join(', ');
   const from = user.role === 'ADMIN' ? `${schoolName} office` : `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`;
 
   const alertId = ulid();
@@ -121,7 +134,7 @@ route.post('/api/alerts', async (c) => {
     sms: `${schoolName}: ${d.title}. ${d.message}`.slice(0, 300),
     emailSubject: `${d.title} — ${schoolName}`,
     emailText: `${d.message}\n\nFrom ${from}, to ${to}.`,
-    link: '/alerts/',
+    link,
     dedupeKey: `alert:${alertId}:${u.userId}`,
   });
 
@@ -137,11 +150,11 @@ route.post('/api/alerts', async (c) => {
 
   const alert: SchoolAlert = {
     schoolId: user.schoolId, sk: `${createdAt}#${alertId}`, alertId,
-    kind: d.kind, title: d.title, message: d.message, audience: d.audience, classroomIds,
+    kind: d.kind, title: d.title, message: d.message, audience: d.audience, classroomIds: d.classroomIds,
     sentByUserId: user.userId, sentByName: from, sentByRole: user.role, recipients: delivered, createdAt,
   };
   await putAlert(alert);
-  return c.json({ alert: view(alert) }, 201);
-});
+  return alert;
+}
 
 export default route;

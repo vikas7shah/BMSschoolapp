@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
-import { api, type Alert, type ClassList, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
+import { api, type Alert, type ClassList, type Signup, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallPrompt } from '@/components/install-prompt';
@@ -15,6 +15,7 @@ import { EventList } from '@/components/event-list';
 import { CurriculumCard, groupMatches, myClassroomsOf } from '@/components/newsletter';
 import { NewsletterDeck } from '@/components/newsletter-deck';
 import { AlertCard } from '@/components/alert-card';
+import { SignupTiles } from '@/components/signup-cards';
 
 
 interface MineResponse { today: string; slots: Slot[] }
@@ -28,6 +29,7 @@ export default function HomePage() {
   const [newsletters, setNewsletters] = useState<Newsletter[] | null>(null);
   const [extras, setExtras] = useState<CurriculumItem[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [signups, setSignups] = useState<Signup[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = me?.role === 'ADMIN';
@@ -47,6 +49,7 @@ export default function HomePage() {
     ]);
     setExtras(added.items);
     api.get<{ alerts: Alert[] }>('/api/alerts').then((r) => setAlerts(r.alerts)).catch(() => undefined);
+    api.get<{ signups: Signup[] }>('/api/signups').then((r) => setSignups(r.signups)).catch(() => undefined);
     setMine(m);
     setUnread(notes.unread);
     setNewsletters(news.newsletters);
@@ -139,6 +142,9 @@ export default function HomePage() {
         {isAdmin && (overview
           ? <Coverage overview={overview} tile onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
           : <Skeleton className="h-full" />)}
+
+        {/* Conference and observation sign-ups lead while they're on. */}
+        {me && <SignupTiles signups={signups} me={me} />}
 
         {isTeacher && (classes
           ? classes.map((room) => (
