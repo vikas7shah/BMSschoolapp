@@ -32,11 +32,19 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
   }, [onError]);
   useEffect(() => { void load(); }, [load]);
 
+  // Classrooms already in an open or draft sign-up of a kind can't be in another.
+  const takenBy = (kind: Signup['kind'], except?: string) => new Set((list ?? [])
+    .filter((x) => x.kind === kind && x.status !== 'CLOSED' && x.eventId !== except)
+    .flatMap((x) => x.classroomIds));
+  const freeFor = (kind: Signup['kind']) => classrooms.filter((c) => !takenBy(kind).has(c.classroomId));
+
   async function create(kind: Signup['kind']) {
+    const free = freeFor(kind).map((c) => c.classroomId);
+    if (!free.length) return;
     try {
       const r = await api.post<{ eventId: string }>('/api/admin/signups', kind === 'CONFERENCE'
-        ? { kind, title: 'Parent–teacher conference', slotMinutes: 20, capacity: 1, classroomIds: classrooms.map((c) => c.classroomId), location: 'In person' }
-        : { kind, title: 'Parent observation', slotMinutes: 20, capacity: 5, classroomIds: classrooms.map((c) => c.classroomId), location: 'In person' });
+        ? { kind, title: 'Parent–teacher conference', slotMinutes: 20, capacity: 1, classroomIds: free, location: 'In person' }
+        : { kind, title: 'Parent observation', slotMinutes: 20, capacity: 5, classroomIds: free, location: 'In person' });
       await load();
       setOpenId(r.eventId);
     } catch (err) {
@@ -50,6 +58,7 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
       <Editor
         signup={current}
         classrooms={classrooms}
+        taken={takenBy(current.kind, current.eventId)}
         reload={load}
         onBack={() => setOpenId(null)}
         onChanged={onChanged}
@@ -62,10 +71,14 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
     <div className="space-y-4">
       <div className="flex gap-2">
         {CONFERENCES_ENABLED && <Button className="flex-1" variant="secondary" onClick={() => void create('CONFERENCE')}>+ Conference</Button>}
-        <Button className="flex-1" onClick={() => void create('OBSERVATION')}>+ Parent observation</Button>
+        <Button className="flex-1" disabled={!!list && !freeFor('OBSERVATION').length} onClick={() => void create('OBSERVATION')}>
+          + Parent observation
+        </Button>
       </div>
       <p className="text-center text-xs text-muted">
-        A new sign-up starts as a draft. Families and teachers see it once you publish.
+        {list && !freeFor('OBSERVATION').length
+          ? 'Every classroom already has a parent observation. Take a classroom off one, or close it, to start another.'
+          : `A new one starts as a draft for ${freeFor('OBSERVATION').map((c) => c.name).join(', ')}. Families and teachers see it once you publish.`}
       </p>
       {!list ? <Skeleton className="h-32" /> : !list.length ? (
         <EmptyState title="No sign-ups yet" body="Create a parent observation sign-up to get started." />
@@ -103,9 +116,11 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
   );
 }
 
-function Editor({ signup, classrooms, reload, onBack, onChanged, onError }: {
+function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError }: {
   signup: Signup;
   classrooms: { classroomId: string; name: string }[];
+  /** Classrooms in another open or draft sign-up of this kind. */
+  taken: Set<string>;
   reload: () => Promise<void>;
   onBack: () => void;
   onChanged: (msg: string) => void;
@@ -114,7 +129,9 @@ function Editor({ signup, classrooms, reload, onBack, onChanged, onError }: {
   const [title, setTitle] = useState(signup.title);
   const [closesOn, setClosesOn] = useState(signup.setClosesOn ?? '');
   const [roomIds, setRoomIds] = useState(signup.classroomIds);
-  const [room, setRoom] = useState(signup.classroomIds[0] ?? '');
+  const [picked, setRoom] = useState(signup.classroomIds[0] ?? '');
+  // After a classroom is taken off, fall back to one still on it.
+  const room = signup.classroomIds.includes(picked) ? picked : signup.classroomIds[0] ?? '';
   const [hours, setHours] = useState({ date: '', start: '08:00', end: '11:00' });
   const [announce, setAnnounce] = useState(true);
   const [note, setNote] = useState(() => ({
@@ -160,14 +177,17 @@ function Editor({ signup, classrooms, reload, onBack, onChanged, onError }: {
         <div className="flex flex-wrap gap-2">
           {classrooms.map((c) => {
             const on = roomIds.includes(c.classroomId);
+            const elsewhere = !on && taken.has(c.classroomId);
             return (
               <button
                 key={c.classroomId}
                 type="button"
+                disabled={elsewhere}
+                title={elsewhere ? 'In another sign-up' : undefined}
                 onClick={() => setRoomIds(on ? roomIds.filter((x) => x !== c.classroomId) : [...roomIds, c.classroomId])}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium ${on ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
+                className={`rounded-full px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${on ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
               >
-                {c.name}
+                {c.name}{elsewhere ? ' · in another' : ''}
               </button>
             );
           })}

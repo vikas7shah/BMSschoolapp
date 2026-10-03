@@ -65,8 +65,9 @@ route.get('/api/signups', async (c) => {
     if (!isAdmin && event.status === 'DRAFT') continue;
     const rel = event.classroomIds.filter((id) => myRooms.has(id));
     if (!rel.length && !isAdmin) continue;
+    // Only its current classrooms: a classroom taken off it no longer counts.
     const slots = (await listSignupSlots(user.schoolId, event.eventId))
-      .filter((s) => isAdmin || rel.includes(s.classroomId));
+      .filter((s) => event.classroomIds.includes(s.classroomId) && (isAdmin || rel.includes(s.classroomId)));
     const lastDay = slots.map((s) => s.date).sort().at(-1);
     // Over once its last day has passed; the office keeps it in its list.
     if (!isAdmin && lastDay && lastDay < now) continue;
@@ -193,11 +194,29 @@ route.post('/api/signups/:eventId/remind', async (c) => {
 
 /* ------------------------------------------------------------- the office */
 
+/**
+ * A classroom is in at most one sign-up of each kind at a time (closed ones
+ * aside), so a family never sees two observations for the same child.
+ * Returns the names of the classrooms already taken, if any.
+ */
+async function takenRooms(schoolId: string, kind: SignupEvent['kind'], classroomIds: string[], exceptEventId?: string) {
+  const [events, rooms] = await Promise.all([listSignupEvents(schoolId), listClassrooms(schoolId)]);
+  const taken = new Set(events
+    .filter((e) => e.kind === kind && e.status !== 'CLOSED' && e.eventId !== exceptEventId)
+    .flatMap((e) => e.classroomIds));
+  return rooms.filter((r) => classroomIds.includes(r.classroomId) && taken.has(r.classroomId)).map((r) => r.name);
+}
+
+const takenMessage = (names: string[], kind: SignupEvent['kind']) =>
+  `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} already in another ${kind === 'CONFERENCE' ? 'conference' : 'observation'} sign-up. Take ${names.length === 1 ? 'it' : 'them'} off that one first.`;
+
 route.post('/api/admin/signups', async (c) => {
   const admin = c.get('user');
   const parsed = signupEventSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Check the details' }, 400);
   const d = parsed.data;
+  const clash = await takenRooms(admin.schoolId, d.kind, d.classroomIds);
+  if (clash.length) return c.json({ error: takenMessage(clash, d.kind) }, 409);
   const eventId = ulid();
   const event: SignupEvent = {
     schoolId: admin.schoolId, sk: `EVENT#${eventId}`, eventId, kind: d.kind, title: d.title, status: 'DRAFT',
@@ -220,6 +239,31 @@ route.patch('/api/admin/signups/:eventId', async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Check the details' }, 400);
   const d = parsed.data;
   const status = ['DRAFT', 'OPEN', 'CLOSED'].includes(body.status) ? body.status as SignupEvent['status'] : event.status;
+  const nextRooms = d.classroomIds ?? event.classroomIds;
+
+  // Adding a classroom, or reopening, can't put it in two sign-ups at once.
+  if (status !== 'CLOSED') {
+    const added = event.status === 'CLOSED' ? nextRooms : nextRooms.filter((id) => !event.classroomIds.includes(id));
+    const clash = await takenRooms(event.schoolId, event.kind, added, event.eventId);
+    if (clash.length) return c.json({ error: takenMessage(clash, event.kind) }, 409);
+  }
+
+  // Taking a classroom off takes its times with it — unless families are
+  // booked there, who have to be moved or removed first.
+  const removed = event.classroomIds.filter((id) => !nextRooms.includes(id));
+  if (removed.length) {
+    const slots = (await listSignupSlots(event.schoolId, event.eventId)).filter((x) => removed.includes(x.classroomId));
+    const busyRooms = [...new Set(slots.filter((x) => x.booked > 0).map((x) => x.classroomId))];
+    if (busyRooms.length) {
+      const names = (await listClassrooms(event.schoolId)).filter((r) => busyRooms.includes(r.classroomId)).map((r) => r.name);
+      const families = slots.reduce((n, x) => n + x.booked, 0);
+      return c.json({
+        error: `${names.join(' and ')} ${families === 1 ? 'has a family' : `${names.length === 1 ? 'has' : 'have'} ${families} families`} booked. Remove ${families === 1 ? 'it' : 'them'} on the sheet first.`,
+      }, 409);
+    }
+    for (const x of slots) await deleteEmptySignupSlot(event.schoolId, x.sk);
+  }
+
   await putSignupEvent({
     ...event, ...(d.title ? { title: d.title } : {}), ...(d.classroomIds ? { classroomIds: d.classroomIds } : {}),
     ...(d.capacity ? { capacity: d.capacity } : {}), ...(d.location !== undefined ? { location: d.location || 'In person' } : {}),
