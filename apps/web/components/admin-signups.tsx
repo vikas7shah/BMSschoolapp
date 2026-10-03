@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { formatShort } from '@bms/shared';
 import { ApiError, api, type Signup } from '@/lib/api';
 import { clock } from '@/lib/time';
+import { CONFERENCES_ENABLED, shownSignup } from '@/lib/features';
 import { Banner, Button, Card, EmptyState, Skeleton, inputClass } from './ui';
 
 const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
@@ -24,7 +25,7 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
 
   const load = useCallback(async () => {
     try {
-      setList((await api.get<{ signups: Signup[] }>('/api/signups')).signups);
+      setList((await api.get<{ signups: Signup[] }>('/api/signups')).signups.filter(shownSignup));
     } catch (err) {
       onError(err instanceof ApiError ? err.message : 'Could not load sign-ups.');
     }
@@ -60,14 +61,14 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
   return (
     <div className="space-y-4">
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => void create('CONFERENCE')}>+ Conference</Button>
-        <Button className="flex-1" variant="secondary" onClick={() => void create('OBSERVATION')}>+ Observation</Button>
+        {CONFERENCES_ENABLED && <Button className="flex-1" variant="secondary" onClick={() => void create('CONFERENCE')}>+ Conference</Button>}
+        <Button className="flex-1" onClick={() => void create('OBSERVATION')}>+ Parent observation</Button>
       </div>
       <p className="text-center text-xs text-muted">
         A new sign-up starts as a draft. Families and teachers see it once you publish.
       </p>
       {!list ? <Skeleton className="h-32" /> : !list.length ? (
-        <EmptyState title="No sign-ups yet" body="Create a conference or observation sign-up to get started." />
+        <EmptyState title="No sign-ups yet" body="Create a parent observation sign-up to get started." />
       ) : (
         <ul className="space-y-2">
           {list.map((s) => {

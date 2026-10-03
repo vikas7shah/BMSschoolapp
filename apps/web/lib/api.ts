@@ -151,6 +151,8 @@ export interface Alert {
   sentByName: string;
   sentByRole: string;
   recipients: number;
+  /** Set when it announces a sign-up. */
+  signupEventId?: string;
   createdAt: string;
 }
 

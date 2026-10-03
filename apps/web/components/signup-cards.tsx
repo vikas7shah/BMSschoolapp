@@ -42,25 +42,25 @@ export function SignupTiles({ signups, me }: { signups: Signup[]; me: Me }) {
       const held = s.slots.find((x) => x.slotId === child.slotId);
       const link = `/signups/?event=${s.eventId}&child=${child.childId}`;
       if (held) {
+        // Booked: the card becomes the day itself.
         tiles.push(
-          <Tile key={`${s.eventId}-${child.childId}`} label={`Your ${label.toLowerCase()} · ${child.firstName}`}>
-            <p className="mt-1 text-[19px] font-bold leading-tight text-ink">{formatShort(held.date)}</p>
-            <p className="text-[17px] font-semibold text-sage-dark">{clockRange(held.start, held.end)}</p>
-            <p className="mt-1 text-sm text-muted">{s.location} · {me.classroomNames[child.classroomId]}</p>
+          <Tile key={`${s.eventId}-${child.childId}`} label={`${label} day · ${child.firstName}`} tone="sage">
+            <p className="mt-1 text-[22px] font-bold leading-tight">{formatShort(held.date)}</p>
+            <p className="text-[18px] font-semibold">{clockRange(held.start, held.end)}</p>
+            <p className="mt-1 text-[13px] text-white/85">{s.location} · {me.classroomNames[child.classroomId]}</p>
             {s.open && (
-              <Link href={link} className="mt-auto self-start text-xs font-medium text-sage underline underline-offset-2">Change time</Link>
+              <Link href={link} className="mt-auto self-start text-xs font-medium text-white underline underline-offset-2">Change time</Link>
             )}
           </Tile>,
         );
       } else if (s.open) {
         tiles.push(
-          <Tile key={`${s.eventId}-${child.childId}`} label={`${s.title} · ${child.firstName}`} tone="sage">
-            <p className="mt-1 text-lg font-bold">Pick a time for {child.firstName}</p>
-            <p className="mt-0.5 text-[13px] text-white/85">
-              {s.location} · {me.classroomNames[child.classroomId]} · {s.slotMinutes} min
+          <Tile key={`${s.eventId}-${child.childId}`} label={s.title}>
+            <p className="mt-1 text-lg font-bold text-ink">Pick a time for {child.firstName}</p>
+            <p className="mt-0.5 text-sm text-muted">
+              {me.classroomNames[child.classroomId]} · {s.slotMinutes} minutes{s.closesOn ? ` · by ${formatShort(s.closesOn)}` : ''}
             </p>
-            {s.closesOn && <p className="text-[13px] text-white/75">Sign up by {formatShort(s.closesOn)}</p>}
-            <Link href={link} className="mt-auto self-start"><Button size="sm" variant="secondary">Pick a time</Button></Link>
+            <Link href={link} className="mt-auto self-start"><Button size="sm">Pick a time</Button></Link>
           </Tile>,
         );
       }

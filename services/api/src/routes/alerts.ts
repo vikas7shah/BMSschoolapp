@@ -48,6 +48,7 @@ const view = (a: SchoolAlert) => ({
   alertId: a.alertId, kind: a.kind, title: a.title, message: a.message,
   audience: a.audience, classroomIds: a.classroomIds,
   sentByName: a.sentByName, sentByRole: a.sentByRole, recipients: a.recipients, createdAt: a.createdAt,
+  signupEventId: a.signupEventId,
 });
 
 route.get('/api/alerts', async (c) => {
@@ -114,7 +115,7 @@ route.post('/api/alerts', async (c) => {
 export async function sendAlert(user: User, d: {
   kind: SchoolAlert['kind']; title: string; message: string;
   audience: SchoolAlert['audience']; classroomIds: string[];
-}, link = '/alerts/'): Promise<SchoolAlert> {
+}, link = '/alerts/', signupEventId?: string): Promise<SchoolAlert> {
   const [school, rooms, people] = await Promise.all([
     getSchool(user.schoolId), listClassrooms(user.schoolId),
     recipientsFor(user.schoolId, d.audience, d.classroomIds, user.userId),
@@ -152,6 +153,7 @@ export async function sendAlert(user: User, d: {
     schoolId: user.schoolId, sk: `${createdAt}#${alertId}`, alertId,
     kind: d.kind, title: d.title, message: d.message, audience: d.audience, classroomIds: d.classroomIds,
     sentByUserId: user.userId, sentByName: from, sentByRole: user.role, recipients: delivered, createdAt,
+    ...(signupEventId ? { signupEventId } : {}),
   };
   await putAlert(alert);
   return alert;

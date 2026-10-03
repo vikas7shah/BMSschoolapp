@@ -156,6 +156,8 @@ export interface SchoolAlert {
   sentByRole: Role;
   /** How many people it was delivered to. */
   recipients: number;
+  /** Set when it announces a sign-up; Home shows the sign-up's own card instead. */
+  signupEventId?: string;
   createdAt: string;
 }
 

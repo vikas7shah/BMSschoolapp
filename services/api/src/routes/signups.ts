@@ -356,7 +356,7 @@ route.post('/api/admin/signups/:eventId/publish', async (c) => {
     const alert = await sendAlert(admin, {
       kind: 'REMINDER', title: title.slice(0, 80), message: message.slice(0, 600),
       audience: 'CLASSROOMS', classroomIds: event.classroomIds,
-    }, `/signups/?event=${event.eventId}`);
+    }, `/signups/?event=${event.eventId}`, event.eventId);
     announced = alert.recipients;
   }
   return c.json({ ok: true, announced });

@@ -5,6 +5,7 @@ import { formatLong, formatShort } from '@bms/shared';
 import { ApiError, api, type Signup, type SignupSlotView } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { clockRange } from '@/lib/time';
+import { shownSignup } from '@/lib/features';
 import { Shell } from '@/components/shell';
 import { Banner, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ui';
 
@@ -31,7 +32,7 @@ export default function SignupsPage() {
 
   const load = useCallback(async () => {
     try {
-      setList((await api.get<{ signups: Signup[] }>('/api/signups')).signups);
+      setList((await api.get<{ signups: Signup[] }>('/api/signups')).signups.filter(shownSignup));
     } catch (err) {
       setError(err instanceof ApiError ? err.message : 'Could not load sign-ups.');
       setList([]);

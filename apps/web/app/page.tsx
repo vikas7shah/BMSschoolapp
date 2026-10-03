@@ -16,6 +16,7 @@ import { CurriculumCard, groupMatches, myClassroomsOf } from '@/components/newsl
 import { NewsletterDeck } from '@/components/newsletter-deck';
 import { AlertCard } from '@/components/alert-card';
 import { SignupTiles } from '@/components/signup-cards';
+import { shownSignup } from '@/lib/features';
 
 
 interface MineResponse { today: string; slots: Slot[] }
@@ -49,7 +50,7 @@ export default function HomePage() {
     ]);
     setExtras(added.items);
     api.get<{ alerts: Alert[] }>('/api/alerts').then((r) => setAlerts(r.alerts)).catch(() => undefined);
-    api.get<{ signups: Signup[] }>('/api/signups').then((r) => setSignups(r.signups)).catch(() => undefined);
+    api.get<{ signups: Signup[] }>('/api/signups').then((r) => setSignups(r.signups.filter(shownSignup))).catch(() => undefined);
     setMine(m);
     setUnread(notes.unread);
     setNewsletters(news.newsletters);
@@ -91,7 +92,10 @@ export default function HomePage() {
   const eventMonth = eventsIn(thisMonth).length ? thisMonth : nextMonth;
   const events = eventsIn(eventMonth);
 
-  const recentAlerts = alerts.filter((a) => Date.now() - Date.parse(a.createdAt) < 2 * 864e5).slice(0, 2);
+  // A sign-up's announcement isn't repeated here: its own card says it.
+  const recentAlerts = alerts
+    .filter((a) => !a.signupEventId && Date.now() - Date.parse(a.createdAt) < 2 * 864e5)
+    .slice(0, 2);
   const myClassrooms = myClassroomsOf(me);
   const latest = newsletters?.[0] ?? null;
   // The latest letter's curriculum for each of my groups, with whatever the
