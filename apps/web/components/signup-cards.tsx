@@ -6,6 +6,17 @@ import type { Me, Signup } from '@/lib/api';
 import { clockRange } from '@/lib/time';
 import { Button, Tile } from './ui';
 
+/** "Classroom 1", "Classroom 1 and 3", or "All classrooms" when it's every one. */
+function roomsLabel(ids: string[], names: Record<string, string>): string {
+  if (ids.length > 1 && ids.length === Object.keys(names).length) return 'All classrooms';
+  const list = ids.map((id) => names[id] ?? 'Classroom').sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+  if (list.length <= 1) return list[0] ?? '';
+  const nums = list.map((n) => n.replace(/^Classroom\s+/i, ''));
+  return list.every((n) => /^Classroom\s+/i.test(n))
+    ? `Classroom ${nums.slice(0, -1).join(', ')} and ${nums.at(-1)}`
+    : `${list.slice(0, -1).join(', ')} and ${list.at(-1)}`;
+}
+
 /**
  * Home tiles for open sign-ups. A family gets one per child: "pick a time"
  * until they have one, then the time itself. A teacher gets one per classroom
@@ -24,7 +35,7 @@ export function SignupTiles({ signups, me }: { signups: Signup[]; me: Me }) {
         const seats = slots.reduce((n, x) => n + x.capacity, 0);
         const booked = slots.reduce((n, x) => n + x.booked, 0);
         tiles.push(
-          <Tile key={`${s.eventId}-${room ?? 'all'}`} label={`${label} · ${room ? me.classroomNames[room] : 'all classrooms'}`}>
+          <Tile key={`${s.eventId}-${room ?? 'all'}`} label={`${label} · ${room ? me.classroomNames[room] : roomsLabel(s.classroomIds, me.classroomNames)}`}>
             <p className="mt-1 text-lg font-bold text-ink">{s.title}</p>
             <p className="mt-0.5 text-sm text-muted">{booked} of {seats} booked{s.open ? '' : ' · sign-ups closed'}</p>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
