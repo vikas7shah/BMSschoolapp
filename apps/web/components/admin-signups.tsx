@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { formatShort } from '@bms/shared';
 import { ApiError, api, type Signup } from '@/lib/api';
-import { clock } from '@/lib/time';
+import { clock, clockRange } from '@/lib/time';
 import { CONFERENCES_ENABLED, shownSignup } from '@/lib/features';
 import { Banner, Button, Card, EmptyState, Skeleton, inputClass } from './ui';
 
@@ -209,7 +209,10 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
       </Card>
 
       <Card className="!p-4">
-        <h2 className="font-semibold text-ink">Times</h2>
+        <h2 className="font-semibold text-ink">Time slots</h2>
+        <p className="mt-0.5 text-xs text-muted">
+          Each slot is {signup.slotMinutes} minutes, for {signup.capacity === 1 ? 'one family' : `up to ${signup.capacity} families`}. Pick a classroom to see or change its slots; ✕ removes an empty one.
+        </p>
         <div className="mt-2 flex flex-wrap gap-2">
           {signup.classroomIds.map((id) => (
             <button
@@ -218,7 +221,7 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
               onClick={() => setRoom(id)}
               className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${id === room ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
             >
-              {nameOf(id)} · {(() => { const n = signup.slots.filter((s) => s.classroomId === id).length; return n ? `${n} ${n === 1 ? 'time' : 'times'}` : 'no times yet'; })()}
+              {nameOf(id)} — {(() => { const n = signup.slots.filter((s) => s.classroomId === id).length; return n ? `${n} time ${n === 1 ? 'slot' : 'slots'}` : 'no time slots yet'; })()}
             </button>
           ))}
         </div>
@@ -230,7 +233,9 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
               <div className="mt-1 flex flex-wrap gap-1.5">
                 {roomSlots.filter((s) => s.date === d).sort((a, b) => a.start.localeCompare(b.start)).map((s) => (
                   <span key={s.slotId} className="inline-flex items-center gap-1 rounded-full bg-sage-soft px-2.5 py-1 text-xs text-sage-dark">
-                    {clock(s.start)}{s.booked ? ` · ${s.booked} booked` : ''}
+                    {clockRange(s.start, s.end)} · {s.capacity === 1
+                      ? (s.booked ? 'booked' : 'open')
+                      : `${s.booked} of ${s.capacity} families booked`}
                     <button
                       type="button"
                       aria-label={`Remove ${clock(s.start)}`}
@@ -245,17 +250,17 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
               </div>
             </div>
           ))}
-          {!days.length && <p className="text-sm text-muted">No times for {nameOf(room)} yet.</p>}
+          {!days.length && <p className="text-sm text-muted">No time slots for {nameOf(room)} yet.</p>}
         </div>
 
         <div className="mt-4 rounded-xl bg-black/[.03] p-3">
-          <p className="text-xs font-medium text-ink">Add hours to {nameOf(room)}</p>
+          <p className="text-xs font-medium text-ink">Add time slots to {nameOf(room)}</p>
           <div className="mt-2 grid grid-cols-2 gap-2 [&>input]:min-w-0">
             <input aria-label="Day" type="date" className={`${inputClass} col-span-2 px-2 py-2 text-sm`} value={hours.date} onChange={(e) => setHours({ ...hours, date: e.target.value })} />
             <input aria-label="From" type="time" step={300} className={`${inputClass} px-2 py-2 text-sm`} value={hours.start} onChange={(e) => setHours({ ...hours, start: e.target.value })} />
             <input aria-label="To" type="time" step={300} className={`${inputClass} px-2 py-2 text-sm`} value={hours.end} onChange={(e) => setHours({ ...hours, end: e.target.value })} />
           </div>
-          <p className="mt-1.5 text-[11px] text-muted">Makes back-to-back {signup.slotMinutes}-minute times. Leave a gap for lunch by adding two blocks.</p>
+          <p className="mt-1.5 text-[11px] text-muted">Pick a day and a start and end time; it makes back-to-back {signup.slotMinutes}-minute slots. For a break, add two blocks (e.g. 8:00–11:20 and 12:00–2:00).</p>
           <Button
             size="sm"
             className="mt-2"
@@ -263,16 +268,16 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
             disabled={!hours.date}
             onClick={() => void run(async () => {
               const r = await api.post<{ added: number }>(`${base}/hours`, { classroomId: room, ...hours });
-              onChanged(`Added ${r.added} ${r.added === 1 ? 'time' : 'times'} to ${nameOf(room)}.`);
+              onChanged(`Added ${r.added} time ${r.added === 1 ? 'slot' : 'slots'} to ${nameOf(room)}.`);
             })}
           >
-            Add times
+            Add time slots
           </Button>
         </div>
 
         {roomSlots.length > 0 && signup.classroomIds.length > 1 && (
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-muted">Copy these times to</span>
+            <span className="text-muted">Copy these time slots to</span>
             {signup.classroomIds.filter((id) => id !== room).map((id) => (
               <button
                 key={id}
@@ -280,7 +285,7 @@ function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError 
                 disabled={busy}
                 onClick={() => void run(async () => {
                   const r = await api.post<{ added: number }>(`${base}/copy-times`, { from: room, to: id });
-                  onChanged(`Copied ${r.added} ${r.added === 1 ? 'time' : 'times'} to ${nameOf(id)}.`);
+                  onChanged(`Copied ${r.added} time ${r.added === 1 ? 'slot' : 'slots'} to ${nameOf(id)}.`);
                 })}
                 className="rounded-full bg-black/5 px-2.5 py-1 font-medium text-ink hover:bg-black/10"
               >
