@@ -135,6 +135,9 @@ export interface Signup {
   setClosesOn: string | null;
   /** Families can still book or switch. */
   open: boolean;
+  /** Every day gets every time ("08:30"). */
+  days: string[];
+  times: string[];
   slots: SignupSlotView[];
   children: { childId: string; firstName: string; classroomId: string; slotId: string | null }[];
   notBooked?: { childId: string; name: string; classroomId: string; parents: string[] }[];

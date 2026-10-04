@@ -166,6 +166,12 @@ export const signupEventSchema = z.object({
   location: z.string().trim().max(80).default('In person'),
 });
 
+/** An observation's days and times; its slots become every day × every time. */
+export const signupScheduleSchema = z.object({
+  days: z.array(civil).max(10),
+  times: z.array(hhmm).max(12),
+});
+
 /** Hours to fill with times: 8:00 → 11:20 makes ten 20-minute times. */
 export const signupHoursSchema = z.object({
   classroomId: z.string().min(1),

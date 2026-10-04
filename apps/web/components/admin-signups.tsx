@@ -4,9 +4,11 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { formatShort } from '@bms/shared';
 import { ApiError, api, type Signup } from '@/lib/api';
-import { clock, clockRange } from '@/lib/time';
-import { CONFERENCES_ENABLED, shownSignup } from '@/lib/features';
-import { Button, Card, EmptyState, Skeleton, inputClass } from './ui';
+import { clockRange } from '@/lib/time';
+import { shownSignup } from '@/lib/features';
+import { Button, Card, Skeleton, inputClass } from './ui';
+
+type Room = { classroomId: string; name: string };
 
 const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
   DRAFT: { label: 'Draft', cls: 'bg-black/5 text-muted' },
@@ -14,9 +16,26 @@ const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
   CLOSED: { label: 'Closed', cls: 'bg-black/5 text-muted' },
 };
 
-/** Admin → Sign-ups: conferences and observations, from draft to published. */
+const SLOT_MINUTES = 20;
+const FAMILIES_PER_TIME = 5;
+
+/** "08:30" + 20 min → "08:50" */
+const plus = (hhmm: string, mins: number) => {
+  const t = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5)) + mins;
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+};
+
+const booked = (s: Signup) => s.slots.reduce((n, x) => n + x.booked, 0);
+const seats = (s: Signup) => s.slots.reduce((n, x) => n + x.capacity, 0);
+const dayRange = (days: string[]) => (!days.length ? 'No days yet'
+  : days.length === 1 ? formatShort(days[0]!) : `${formatShort(days[0]!)} – ${formatShort(days.at(-1)!)}`);
+
+/**
+ * Admin → Sign-ups: one parent observation per classroom. The list is the
+ * classrooms; each opens one screen with its days, times and bookings.
+ */
 export function AdminSignups({ classrooms, onChanged, onError }: {
-  classrooms: { classroomId: string; name: string }[];
+  classrooms: Room[];
   onChanged: (msg: string) => void;
   onError: (msg: string) => void;
 }) {
@@ -32,23 +51,21 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
   }, [onError]);
   useEffect(() => { void load(); }, [load]);
 
-  // Classrooms already in an open or draft sign-up of a kind can't be in another.
-  const takenBy = (kind: Signup['kind'], except?: string) => new Set((list ?? [])
-    .filter((x) => x.kind === kind && x.status !== 'CLOSED' && x.eventId !== except)
-    .flatMap((x) => x.classroomIds));
-  const freeFor = (kind: Signup['kind']) => classrooms.filter((c) => !takenBy(kind).has(c.classroomId));
+  /** The classroom's current (not closed) observation, if any. */
+  const forRoom = (id: string) => list?.find((s) => s.status !== 'CLOSED' && s.classroomIds.includes(id));
 
-  async function create(kind: Signup['kind']) {
-    const free = freeFor(kind).map((c) => c.classroomId);
-    if (!free.length) return;
+  async function create(room: Room, from?: Signup): Promise<string | null> {
     try {
-      const r = await api.post<{ eventId: string }>('/api/admin/signups', kind === 'CONFERENCE'
-        ? { kind, title: 'Parent–teacher conference', slotMinutes: 20, capacity: 1, classroomIds: free, location: 'In person' }
-        : { kind, title: 'Parent observation', slotMinutes: 20, capacity: 5, classroomIds: free, location: 'In person' });
+      const r = await api.post<{ eventId: string }>('/api/admin/signups', {
+        kind: 'OBSERVATION', title: 'Parent observation', slotMinutes: SLOT_MINUTES,
+        capacity: from?.capacity ?? FAMILIES_PER_TIME, classroomIds: [room.classroomId], location: 'In person',
+      });
+      if (from) await api.put(`/api/admin/signups/${r.eventId}/schedule`, { days: from.days, times: from.times });
       await load();
-      setOpenId(r.eventId);
+      return r.eventId;
     } catch (err) {
       onError(err instanceof ApiError ? err.message : 'Could not create it.');
+      return null;
     }
   }
 
@@ -57,9 +74,13 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
     return (
       <Editor
         signup={current}
-        classrooms={classrooms}
-        taken={takenBy(current.kind, current.eventId)}
+        rooms={classrooms}
+        freeRooms={classrooms.filter((c) => !forRoom(c.classroomId))}
         reload={load}
+        onCopy={async (room) => {
+          const id = await create(room, current);
+          if (id) onChanged(`Copied to ${room.name} as a draft.`);
+        }}
         onBack={() => setOpenId(null)}
         onChanged={onChanged}
         onError={onError}
@@ -67,294 +88,270 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
     );
   }
 
+  const closed = (list ?? []).filter((s) => s.status === 'CLOSED');
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        {CONFERENCES_ENABLED && <Button className="flex-1" variant="secondary" onClick={() => void create('CONFERENCE')}>+ Conference</Button>}
-        <Button className="flex-1" disabled={!!list && !freeFor('OBSERVATION').length} onClick={() => void create('OBSERVATION')}>
-          + Parent observation
-        </Button>
+      <div>
+        <h2 className="px-1 font-semibold text-ink">Parent observations</h2>
+        <p className="mt-0.5 px-1 text-sm text-muted">One sign-up per classroom. Families see it once you publish.</p>
       </div>
-      <p className="text-center text-xs text-muted">
-        {list && !freeFor('OBSERVATION').length
-          ? 'Every classroom already has a parent observation. Take a classroom off one, or close it, to start another.'
-          : `A new one starts as a draft for ${freeFor('OBSERVATION').map((c) => c.name).join(', ')}. Families and teachers see it once you publish.`}
-      </p>
-      {!list ? <Skeleton className="h-32" /> : !list.length ? (
-        <EmptyState title="No sign-ups yet" body="Create a parent observation sign-up to get started." />
-      ) : (
+      {!list ? <Skeleton className="h-40" /> : (
         <ul className="space-y-2">
-          {list.map((s) => {
-            const seats = s.slots.reduce((n, x) => n + x.capacity, 0);
-            const booked = s.slots.reduce((n, x) => n + x.booked, 0);
-            const days = [...new Set(s.slots.map((x) => x.date))].sort();
+          {classrooms.map((room) => {
+            const s = forRoom(room.classroomId);
             return (
-              <li key={s.eventId}>
-                <button type="button" onClick={() => setOpenId(s.eventId)} className="w-full text-left">
-                  <Card className="!p-4 transition-colors hover:border-sage">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-ink">{s.title}</p>
-                        <p className="text-xs text-muted">
-                          {days.length ? `${formatShort(days[0]!)}${days.length > 1 ? ` – ${formatShort(days.at(-1)!)}` : ''}` : 'No times yet'}
-                          {' · '}{s.classroomIds.length} {s.classroomIds.length === 1 ? 'classroom' : 'classrooms'}
-                          {' · '}{s.capacity === 1 ? `${s.slotMinutes} min` : `${s.capacity} families per time`}
-                        </p>
+              <li key={room.classroomId}>
+                {s ? (
+                  <button type="button" onClick={() => setOpenId(s.eventId)} className="w-full text-left">
+                    <Card className="!p-4 transition-colors hover:border-sage">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-ink">{room.name}</p>
+                          <p className="text-sm text-muted">
+                            {dayRange(s.days)} · {s.status === 'DRAFT' ? 'not published yet' : `${booked(s)} of ${seats(s)} booked`}
+                          </p>
+                        </div>
+                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[s.status].cls}`}>
+                          {STATUS[s.status].label}
+                        </span>
                       </div>
-                      <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[s.status].cls}`}>
-                        {STATUS[s.status].label}{s.status !== 'DRAFT' ? ` · ${booked} of ${seats}` : ''}
-                      </span>
-                    </div>
-                  </Card>
-                </button>
+                    </Card>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={async () => { const id = await create(room); if (id) setOpenId(id); }}
+                    className="flex w-full items-center justify-between rounded-2xl border border-dashed border-line px-4 py-4 text-left transition-colors hover:border-sage"
+                  >
+                    <span>
+                      <span className="block font-semibold text-ink">{room.name}</span>
+                      <span className="text-sm text-muted">No sign-up yet</span>
+                    </span>
+                    <span className="text-sm font-semibold text-sage">+ Create</span>
+                  </button>
+                )}
               </li>
             );
           })}
         </ul>
       )}
+      {closed.length > 0 && (
+        <div>
+          <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted">Closed</p>
+          <ul className="space-y-1.5">
+            {closed.map((s) => (
+              <li key={s.eventId}>
+                <button
+                  type="button"
+                  onClick={() => setOpenId(s.eventId)}
+                  className="flex w-full justify-between rounded-xl px-3 py-2 text-left text-sm text-muted hover:bg-black/5"
+                >
+                  <span>{s.classroomIds.map((id) => classrooms.find((c) => c.classroomId === id)?.name).join(', ')} · {dayRange(s.days)}</span>
+                  <span>{booked(s)} booked</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
 
-function Editor({ signup, classrooms, taken, reload, onBack, onChanged, onError }: {
+function Editor({ signup, rooms, freeRooms, reload, onCopy, onBack, onChanged, onError }: {
   signup: Signup;
-  classrooms: { classroomId: string; name: string }[];
-  /** Classrooms in another open or draft sign-up of this kind. */
-  taken: Set<string>;
+  rooms: Room[];
+  /** Classrooms with no observation yet: where this one can be copied. */
+  freeRooms: Room[];
   reload: () => Promise<void>;
+  onCopy: (room: Room) => Promise<void>;
   onBack: () => void;
   onChanged: (msg: string) => void;
   onError: (msg: string) => void;
 }) {
-  const [title, setTitle] = useState(signup.title);
-  const [closesOn, setClosesOn] = useState(signup.setClosesOn ?? '');
-  const [roomIds, setRoomIds] = useState(signup.classroomIds);
-  const [picked, setRoom] = useState(signup.classroomIds[0] ?? '');
-  // After a classroom is taken off, fall back to one still on it.
-  const room = signup.classroomIds.includes(picked) ? picked : signup.classroomIds[0] ?? '';
-  const [hours, setHours] = useState({ date: '', start: '08:00', end: '11:00' });
-  const [announce, setAnnounce] = useState(true);
-  const [note, setNote] = useState(() => ({
-    title: `${signup.title} sign-ups are open`,
-    message: `Pick a ${signup.slotMinutes}-minute time for your child in the BMS Families app.`,
-  }));
+  const [newDay, setNewDay] = useState('');
+  const [newTime, setNewTime] = useState('');
   const [busy, setBusy] = useState(false);
-  const nameOf = (id: string) => classrooms.find((c) => c.classroomId === id)?.name ?? 'Classroom';
-  const roomSlots = signup.slots.filter((s) => s.classroomId === room);
-  const days = [...new Set(roomSlots.map((s) => s.date))].sort();
+  const base = `/api/admin/signups/${signup.eventId}`;
+  const roomName = signup.classroomIds.map((id) => rooms.find((r) => r.classroomId === id)?.name ?? 'Classroom').join(', ');
+  const cell = (date: string, start: string) => signup.slots.find((s) => s.date === date && s.start === start);
 
-  async function run(fn: () => Promise<unknown>, done?: string) {
+  async function run(fn: () => Promise<unknown>, done?: string): Promise<boolean> {
     setBusy(true);
     try {
       await fn();
       await reload();
       if (done) onChanged(done);
+      return true;
     } catch (err) {
       onError(err instanceof ApiError ? err.message : 'That did not work.');
+      return false;
     } finally {
       setBusy(false);
     }
   }
-  const base = `/api/admin/signups/${signup.eventId}`;
+  const schedule = (days: string[], times: string[]) => run(() => api.put(`${base}/schedule`, { days, times }));
+
+  const chip = 'inline-flex items-center gap-1.5 rounded-full bg-sage-soft px-3 py-1.5 text-sm font-medium text-sage-dark';
+  const remove = 'text-sage-dark/60 hover:text-clay disabled:opacity-40';
 
   return (
     <div className="space-y-4">
-      <button type="button" onClick={onBack} className="text-sm text-muted underline underline-offset-4">← All sign-ups</button>
+      <button type="button" onClick={onBack} className="text-sm text-muted underline underline-offset-4">← Sign-ups</button>
 
-      <Card className="!p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="font-semibold text-ink">Details</h2>
-          <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[signup.status].cls}`}>{STATUS[signup.status].label}</span>
+      <Card className="!p-5">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-semibold text-ink">Parent observation</h2>
+            <p className="text-sm text-muted">{roomName}</p>
+          </div>
+          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[signup.status].cls}`}>{STATUS[signup.status].label}</span>
         </div>
-        <label className="mt-3 block">
-          <span className="mb-1 block text-xs font-medium text-muted">Name</span>
-          <input className={`${inputClass} py-2 text-sm`} value={title} onChange={(e) => setTitle(e.target.value)} />
-        </label>
-        <p className="mt-2 text-xs text-muted">
-          {signup.slotMinutes}-minute times · {signup.capacity === 1 ? 'one family each' : `${signup.capacity} families each`} · {signup.location}
-        </p>
-        <span className="mb-1 mt-3 block text-xs font-medium text-muted">Classrooms</span>
-        <div className="flex flex-wrap gap-2">
-          {classrooms.map((c) => {
-            const on = roomIds.includes(c.classroomId);
-            const elsewhere = !on && taken.has(c.classroomId);
-            return (
-              <button
-                key={c.classroomId}
-                type="button"
-                disabled={elsewhere}
-                title={elsewhere ? 'In another sign-up' : undefined}
-                onClick={() => setRoomIds(on ? roomIds.filter((x) => x !== c.classroomId) : [...roomIds, c.classroomId])}
-                className={`rounded-full px-3 py-1.5 text-sm font-medium disabled:opacity-50 ${on ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
-              >
-                {c.name}{elsewhere ? ' · in another' : ''}
-              </button>
-            );
-          })}
-        </div>
-        <label className="mt-3 block">
-          <span className="mb-1 block text-xs font-medium text-muted">
-            Last day to sign up {signup.closesOn && !closesOn ? `· ${formatShort(signup.closesOn)}, the day before the first time` : ''}
-          </span>
-          <input className={`${inputClass} py-2 text-sm`} type="date" value={closesOn} onChange={(e) => setClosesOn(e.target.value)} />
-        </label>
-        <Button
-          size="sm"
-          className="mt-3"
-          loading={busy}
-          onClick={() => void run(() => api.patch(base, { title, classroomIds: roomIds, closesOn }), 'Saved.')}
-        >
-          Save details
-        </Button>
-      </Card>
 
-      <Card className="!p-4">
-        <h2 className="font-semibold text-ink">Time slots</h2>
-        <p className="mt-0.5 text-xs text-muted">
-          Each slot is {signup.slotMinutes} minutes, for {signup.capacity === 1 ? 'one family' : `up to ${signup.capacity} families`}. Pick a classroom to see or change its slots; ✕ removes an empty one.
-        </p>
+        <h3 className="mt-5 text-sm font-semibold text-ink">Days</h3>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {signup.days.map((d) => (
+            <span key={d} className={chip}>
+              {formatShort(d)}
+              <button type="button" aria-label={`Remove ${formatShort(d)}`} disabled={busy} className={remove}
+                onClick={() => void schedule(signup.days.filter((x) => x !== d), signup.times)}>✕</button>
+            </span>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input aria-label="Day to add" type="date" value={newDay} onChange={(e) => setNewDay(e.target.value)}
+            className={`${inputClass} min-w-0 flex-1 px-3 py-2 text-sm`} />
+          <Button size="sm" variant="secondary" className="shrink-0" disabled={!newDay || busy}
+            onClick={async () => { if (await schedule([...signup.days, newDay], signup.times)) setNewDay(''); }}>
+            + Add day
+          </Button>
+        </div>
+
+        <h3 className="mt-5 text-sm font-semibold text-ink">Times <span className="font-normal text-muted">· {signup.slotMinutes} minutes each, every day</span></h3>
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          {signup.times.map((t) => (
+            <span key={t} className={chip}>
+              {clockRange(t, plus(t, signup.slotMinutes))}
+              <button type="button" aria-label={`Remove ${t}`} disabled={busy} className={remove}
+                onClick={() => void schedule(signup.days, signup.times.filter((x) => x !== t))}>✕</button>
+            </span>
+          ))}
+        </div>
+        <div className="mt-2 flex items-center gap-2">
+          <input aria-label="Start time to add" type="time" step={300} value={newTime} onChange={(e) => setNewTime(e.target.value)}
+            className={`${inputClass} min-w-0 flex-1 px-3 py-2 text-sm`} />
+          <Button size="sm" variant="secondary" className="shrink-0" disabled={!newTime || busy}
+            onClick={async () => { if (await schedule(signup.days, [...signup.times, newTime])) setNewTime(''); }}>
+            + Add time
+          </Button>
+        </div>
+
+        <h3 className="mt-5 text-sm font-semibold text-ink">Families per time</h3>
         <div className="mt-2 flex flex-wrap gap-2">
-          {signup.classroomIds.map((id) => (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setRoom(id)}
-              className={`rounded-full px-3 py-1.5 text-[13px] font-semibold ${id === room ? 'bg-sage text-white' : 'bg-black/5 text-muted'}`}
-            >
-              {nameOf(id)} — {(() => { const n = signup.slots.filter((s) => s.classroomId === id).length; return n ? `${n} time ${n === 1 ? 'slot' : 'slots'}` : 'no time slots yet'; })()}
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <button key={n} type="button" disabled={busy}
+              onClick={() => n !== signup.capacity && void run(() => api.patch(base, { capacity: n }), `Up to ${n} ${n === 1 ? 'family' : 'families'} per time.`)}
+              className={`size-9 rounded-full text-sm font-semibold ${n === signup.capacity ? 'bg-sage text-white' : 'bg-black/5 text-muted hover:text-ink'}`}>
+              {n}
             </button>
           ))}
         </div>
 
-        <div className="mt-3 space-y-2.5">
-          {days.map((d) => (
-            <div key={d}>
-              <p className="text-xs font-semibold text-ink">{formatShort(d)}</p>
-              <div className="mt-1 flex flex-wrap gap-1.5">
-                {roomSlots.filter((s) => s.date === d).sort((a, b) => a.start.localeCompare(b.start)).map((s) => (
-                  <span key={s.slotId} className="inline-flex items-center gap-1 rounded-full bg-sage-soft px-2.5 py-1 text-xs text-sage-dark">
-                    {clockRange(s.start, s.end)} · {s.capacity === 1
-                      ? (s.booked ? 'booked' : 'open')
-                      : `${s.booked} of ${s.capacity} families booked`}
-                    <button
-                      type="button"
-                      aria-label={`Remove ${clock(s.start)}`}
-                      disabled={busy}
-                      onClick={() => void run(() => api.post(`${base}/remove-time`, { slotId: s.slotId }))}
-                      className="ml-0.5 text-sage-dark/60 hover:text-clay"
-                    >
-                      ✕
-                    </button>
-                  </span>
-                ))}
-              </div>
+        {signup.days.length > 0 && signup.times.length > 0 && (
+          <>
+            <h3 className="mt-5 text-sm font-semibold text-ink">Bookings</h3>
+            <div className="mt-2 overflow-x-auto">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr>
+                    <th className="p-2" />
+                    {signup.days.map((d) => <th key={d} className="whitespace-nowrap p-2 text-left font-medium text-muted">{formatShort(d)}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {signup.times.map((t) => (
+                    <tr key={t} className="border-t border-line">
+                      <th className="whitespace-nowrap p-2 text-left font-medium text-ink">{clockRange(t, plus(t, signup.slotMinutes))}</th>
+                      {signup.days.map((d) => {
+                        const s = cell(d, t);
+                        return (
+                          <td key={d} className={`whitespace-nowrap p-2 ${s && s.booked >= s.capacity ? 'font-semibold text-sage-dark' : 'text-muted'}`}>
+                            {s ? `${s.booked} of ${s.capacity}` : '—'}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          ))}
-          {!days.length && <p className="text-sm text-muted">No time slots for {nameOf(room)} yet.</p>}
-        </div>
-
-        <div className="mt-4 rounded-xl bg-black/[.03] p-3">
-          <p className="text-xs font-medium text-ink">Add time slots to {nameOf(room)}</p>
-          <div className="mt-2 grid grid-cols-2 gap-2 [&>input]:min-w-0">
-            <input aria-label="Day" type="date" className={`${inputClass} col-span-2 px-2 py-2 text-sm`} value={hours.date} onChange={(e) => setHours({ ...hours, date: e.target.value })} />
-            <input aria-label="From" type="time" step={300} className={`${inputClass} px-2 py-2 text-sm`} value={hours.start} onChange={(e) => setHours({ ...hours, start: e.target.value })} />
-            <input aria-label="To" type="time" step={300} className={`${inputClass} px-2 py-2 text-sm`} value={hours.end} onChange={(e) => setHours({ ...hours, end: e.target.value })} />
-          </div>
-          <p className="mt-1.5 text-[11px] text-muted">Pick a day and a start and end time; it makes back-to-back {signup.slotMinutes}-minute slots. For a break, add two blocks (e.g. 8:00–11:20 and 12:00–2:00).</p>
-          <Button
-            size="sm"
-            className="mt-2"
-            loading={busy}
-            disabled={!hours.date}
-            onClick={() => void run(async () => {
-              const r = await api.post<{ added: number }>(`${base}/hours`, { classroomId: room, ...hours });
-              onChanged(`Added ${r.added} time ${r.added === 1 ? 'slot' : 'slots'} to ${nameOf(room)}.`);
-            })}
-          >
-            Add time slots
-          </Button>
-        </div>
-
-        {roomSlots.length > 0 && signup.classroomIds.length > 1 && (
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
-            <span className="text-muted">Copy these time slots to</span>
-            {signup.classroomIds.filter((id) => id !== room).map((id) => (
-              <button
-                key={id}
-                type="button"
-                disabled={busy}
-                onClick={() => void run(async () => {
-                  const r = await api.post<{ added: number }>(`${base}/copy-times`, { from: room, to: id });
-                  onChanged(`Copied ${r.added} time ${r.added === 1 ? 'slot' : 'slots'} to ${nameOf(id)}.`);
-                })}
-                className="rounded-full bg-black/5 px-2.5 py-1 font-medium text-ink hover:bg-black/10"
-              >
-                {nameOf(id)}
-              </button>
-            ))}
-          </div>
+          </>
         )}
       </Card>
 
-      {signup.status === 'DRAFT' ? (
-        <Card className="!p-4">
-          <h2 className="font-semibold text-ink">Publish</h2>
-          <p className="mt-0.5 text-sm text-muted">Parents and teachers will see it, and parents can book.</p>
-          <label className="mt-3 flex items-start gap-2.5">
-            <input type="checkbox" className="mt-1 size-4 accent-sage" checked={announce} onChange={(e) => setAnnounce(e.target.checked)} />
-            <span className="text-sm text-ink">
-              Send an announcement
-              <span className="block text-xs text-muted">To every parent in these classrooms, in the app and by email.</span>
-            </span>
-          </label>
-          {announce && (
-            <div className="mt-3 space-y-2">
-              <input className={`${inputClass} py-2 text-sm`} maxLength={80} value={note.title} onChange={(e) => setNote({ ...note, title: e.target.value })} />
-              <textarea className={`${inputClass} min-h-20 py-2 text-sm`} maxLength={600} value={note.message} onChange={(e) => setNote({ ...note, message: e.target.value })} />
+      <Card className="!p-5">
+        {signup.status === 'DRAFT' ? (
+          <>
+            <p className="text-sm text-muted">
+              {signup.slots.length
+                ? `Publishing shows it to ${roomName} families and teachers. Sign-ups close ${signup.closesOn ? formatShort(signup.closesOn) : 'the day before the first day'}.`
+                : 'Add at least one day and one time, then publish.'}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button loading={busy} disabled={!signup.slots.length}
+                onClick={() => window.confirm(`Publish and email every ${roomName} parent now?`)
+                  && void run(async () => {
+                    const r = await api.post<{ announced: number }>(`${base}/publish`, {
+                      announce: true,
+                      title: 'Parent observation sign-ups are open',
+                      message: `Pick a ${signup.slotMinutes}-minute time to visit your child's classroom (${roomName}) in the BMS Families app.`,
+                    });
+                    onChanged(`Published. Emailed ${r.announced} ${r.announced === 1 ? 'parent' : 'parents'}.`);
+                  })}>
+                Publish and email parents
+              </Button>
+              <Button variant="ghost" disabled={busy || !signup.slots.length}
+                onClick={() => void run(() => api.post(`${base}/publish`, { announce: false }), 'Published without an email.')}>
+                Publish only
+              </Button>
             </div>
-          )}
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button
-              loading={busy}
-              onClick={() => window.confirm(announce ? 'Publish and send the announcement now?' : 'Publish now?')
-                && void run(async () => {
-                  const r = await api.post<{ announced: number }>(`${base}/publish`, { announce, ...note });
-                  onChanged(announce ? `Published. Announcement sent to ${r.announced} people.` : 'Published.');
-                })}
-            >
-              {announce ? 'Publish and announce' : 'Publish'}
-            </Button>
-            <Button
-              variant="danger"
-              disabled={busy}
-              onClick={() => window.confirm('Delete this draft?') && void run(async () => { await api.del(base); onBack(); }, 'Draft deleted.')}
-            >
-              Delete
-            </Button>
+          </>
+        ) : (
+          <>
+            <p className="text-sm text-muted">
+              {signup.status === 'CLOSED' ? 'Closed — families can no longer book.'
+                : signup.open ? `Open. Families can book until ${signup.closesOn ? formatShort(signup.closesOn) : 'you close it'}.`
+                  : 'The last day to sign up has passed.'}
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Link href={`/signups/?event=${signup.eventId}`}><Button size="sm">Open the sheet</Button></Link>
+              <Button size="sm" variant="secondary" loading={busy}
+                onClick={() => void run(() => api.patch(base, { status: signup.status === 'OPEN' ? 'CLOSED' : 'OPEN' }),
+                  signup.status === 'OPEN' ? 'Sign-ups closed.' : 'Sign-ups reopened.')}>
+                {signup.status === 'OPEN' ? 'Close sign-ups' : 'Reopen'}
+              </Button>
+            </div>
+          </>
+        )}
+
+        {(signup.slots.length > 0 && freeRooms.length > 0) || signup.status === 'DRAFT' ? (
+          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-3 text-sm">
+            {signup.slots.length > 0 && freeRooms.map((r) => (
+              <button key={r.classroomId} type="button" disabled={busy} onClick={() => void onCopy(r)}
+                className="font-medium text-sage underline underline-offset-2">
+                Copy to {r.name}
+              </button>
+            ))}
+            {signup.status === 'DRAFT' && (
+              <button type="button" disabled={busy}
+                onClick={() => window.confirm('Delete this draft?') && void run(async () => { await api.del(base); onBack(); }, 'Draft deleted.')}
+                className="ml-auto font-medium text-clay underline underline-offset-2">
+                Delete draft
+              </button>
+            )}
           </div>
-        </Card>
-      ) : (
-        <Card className="!p-4">
-          <h2 className="font-semibold text-ink">{signup.status === 'OPEN' ? 'Published' : 'Closed'}</h2>
-          <p className="mt-0.5 text-sm text-muted">
-            {signup.status === 'OPEN'
-              ? signup.open ? `Families can book until ${signup.closesOn ? formatShort(signup.closesOn) : 'you close it'}.` : 'The last day to sign up has passed.'
-              : 'Families can no longer book. The office can still make changes on the sheet.'}
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Link href={`/signups/?event=${signup.eventId}`}><Button size="sm">Open the sheet</Button></Link>
-            <Button
-              size="sm"
-              variant="secondary"
-              loading={busy}
-              onClick={() => void run(() => api.patch(base, { status: signup.status === 'OPEN' ? 'CLOSED' : 'OPEN' }),
-                signup.status === 'OPEN' ? 'Sign-ups closed.' : 'Sign-ups reopened.')}
-            >
-              {signup.status === 'OPEN' ? 'Close sign-ups' : 'Reopen'}
-            </Button>
-          </div>
-        </Card>
-      )}
+        ) : null}
+      </Card>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import {
-  addDays, formatShort, signupEventSchema, signupHoursSchema, todayIn,
+  addDays, formatShort, signupEventSchema, signupHoursSchema, signupScheduleSchema, todayIn,
   type ComposedMessage, type SignupEvent, type SignupSlot, type User,
 } from '@bms/shared';
 import {
@@ -77,6 +77,8 @@ route.get('/api/signups', async (c) => {
       eventId: event.eventId, kind: event.kind, title: event.title, status: event.status,
       classroomIds: event.classroomIds, slotMinutes: event.slotMinutes, capacity: event.capacity,
       location: event.location, closesOn: closesOn(event, slots), setClosesOn: event.closesOn ?? null,
+      days: event.days ?? [...new Set(slots.map((s) => s.date))].sort(),
+      times: event.times ?? [...new Set(slots.map((s) => s.start))].sort(),
       open: isOpenFor(event, slots, now),
       slots: slots.map((s) => ({
         slotId: s.sk, classroomId: s.classroomId, date: s.date, start: s.start, end: s.end,
@@ -263,11 +265,57 @@ route.patch('/api/admin/signups/:eventId', async (c) => {
     for (const x of slots) await deleteEmptySignupSlot(event.schoolId, x.sk);
   }
 
+  // Families per time applies to every time, never below what is booked.
+  if (d.capacity && d.capacity !== event.capacity) {
+    const slots = (await listSignupSlots(event.schoolId, event.eventId)).filter((x) => nextRooms.includes(x.classroomId));
+    const over = slots.find((x) => x.booked > d.capacity!);
+    if (over) {
+      return c.json({ error: `${formatShort(over.date)} ${clock(over.start)} already has ${over.booked} families. Move some first, or keep the number at ${over.booked} or more.` }, 409);
+    }
+    for (const x of slots) await setSlotCapacity(event.schoolId, x.sk, d.capacity);
+  }
+
   await putSignupEvent({
     ...event, ...(d.title ? { title: d.title } : {}), ...(d.classroomIds ? { classroomIds: d.classroomIds } : {}),
     ...(d.capacity ? { capacity: d.capacity } : {}), ...(d.location !== undefined ? { location: d.location || 'In person' } : {}),
     ...(d.closesOn !== undefined ? { closesOn: d.closesOn || undefined } : {}), status,
   });
+  return c.json({ ok: true });
+});
+
+/**
+ * An observation's schedule: every day gets every time. Adds the slots that
+ * are missing and removes the ones no longer wanted — unless families are
+ * booked into one, in which case nothing changes and the office is told which.
+ */
+route.put('/api/admin/signups/:eventId/schedule', async (c) => {
+  const event = await eventOr404(c);
+  if (!event) return c.json({ error: 'Not found' }, 404);
+  const parsed = signupScheduleSchema.safeParse(await c.req.json().catch(() => ({})));
+  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Check the days and times' }, 400);
+  const days = [...new Set(parsed.data.days)].sort();
+  const times = [...new Set(parsed.data.times)].sort();
+
+  const slots = await listSignupSlots(event.schoolId, event.eventId);
+  const wanted = new Set(days.flatMap((d) => times.map((t) => `${d}#${t}`)));
+  const unwanted = slots.filter((s) => !wanted.has(`${s.date}#${s.start}`));
+  const busy = unwanted.find((s) => s.booked > 0);
+  if (busy) {
+    return c.json({ error: `${formatShort(busy.date)} at ${clock(busy.start)} has families booked. Move or remove them on the sheet first.` }, 409);
+  }
+  for (const s of unwanted) await deleteEmptySignupSlot(event.schoolId, s.sk);
+  for (const room of event.classroomIds) {
+    for (const date of days) {
+      for (const start of times) {
+        await addSignupSlot({
+          schoolId: event.schoolId, sk: signupSlotSk(event.eventId, room, date, start), eventId: event.eventId,
+          classroomId: room, date, start, end: hhmmOf(minutes(start) + event.slotMinutes),
+          capacity: event.capacity, booked: 0, bookings: {},
+        });
+      }
+    }
+  }
+  await putSignupEvent({ ...event, days, times });
   return c.json({ ok: true });
 });
 
@@ -277,6 +325,12 @@ route.delete('/api/admin/signups/:eventId', async (c) => {
   await deleteSignupItems(event.schoolId, event.eventId);
   return c.json({ ok: true });
 });
+
+/*
+ * Conferences have irregular hours per classroom, so they're built slot by
+ * slot rather than days × times. These three serve them; conferences are
+ * switched off in the app for now (CONFERENCES_ENABLED).
+ */
 
 /** Fills hours with back-to-back times: 8:00 → 11:20 makes ten 20-minute times. */
 route.post('/api/admin/signups/:eventId/hours', async (c) => {

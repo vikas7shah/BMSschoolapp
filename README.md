@@ -494,10 +494,13 @@ never wipes them. The office can add to any group from Admin → News.
 
 ## Sign-ups (parent observations)
 
-**Admin → Sign-ups.** The office creates a parent observation for one or more
-classrooms, adds days and times (20 minutes, five families each), and
-publishes it — optionally emailing every parent in those classrooms. Nothing
-shows until published.
+**Admin → Sign-ups** lists the classrooms. Each has at most one current
+parent observation; one without shows **+ Create**. A sign-up's screen has its
+**days** and **times** (20 minutes each) — every day gets every time, so the
+slots are days × times — the **families per time**, a booking grid, and
+**Publish and email parents**. **Copy to Classroom N** makes the same days and
+times for another classroom as a draft. Nothing shows until published; sign-ups
+close the day before the first day.
 
 - A family gets a Home card per child: "Pick a time for Ava", which becomes
   "Observation day · Ava" with the date and time once booked. One time per
@@ -507,14 +510,14 @@ shows until published.
 - Teachers see their classroom's sheet with names and email, who hasn't
   booked, and a **Remind them** button. The office sees every classroom and
   can seat (past the limit), move or remove a family, add a seat, and print.
-- A classroom is in at most one open observation at a time; taking a
-  classroom off a sign-up removes its times, or is refused while families are
-  booked there.
+- Removing a day or time removes its slots, or is refused while families are
+  booked into one; changing families per time applies to every slot.
 - A booking and its seat are written in one DynamoDB transaction
   (`packages/backend/src/signups.ts`), so a seat is never double-sold.
 
-Parent–teacher conferences use the same machinery (one family per time,
-irregular hours per classroom) and are built but switched off:
+Parent–teacher conferences use the same machinery but with one family per
+time and irregular hours per classroom, built slot by slot (the `hours`,
+`copy-times` and `remove-time` endpoints). They are switched off:
 `CONFERENCES_ENABLED` in `apps/web/lib/features.ts`.
 
 School-wide alerts (snow days, half days) live on the `alerts` branch, set

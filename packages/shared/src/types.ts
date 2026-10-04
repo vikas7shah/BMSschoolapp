@@ -92,6 +92,13 @@ export interface SignupEvent {
   /** Last day families can book or switch; the day before the first time unless set. */
   closesOn?: string;
   location: string;
+  /**
+   * An observation's schedule: every day gets every time ("08:30"), so its
+   * slots are days × times. Conferences, with irregular hours, leave these
+   * unset and are read from their slots.
+   */
+  days?: string[];
+  times?: string[];
   createdAt: string;
   publishedAt?: string;
 }
