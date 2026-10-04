@@ -10,7 +10,6 @@ import {
   listSignupEvents, listSignupSlots, listUsers, putSignupEvent, setSlotCapacity, signupSlotSk,
 } from '@bms/backend';
 import type { Vars } from '../app.js';
-import { sendAlert } from './alerts.js';
 
 const route = new Hono<{ Variables: Vars }>();
 
@@ -177,7 +176,7 @@ route.post('/api/signups/:eventId/remind', async (c) => {
       const parent = users.find((u) => u.userId === l.userId);
       if (!parent) continue;
       const msg: ComposedMessage = {
-        type: 'ALERT',
+        type: 'SIGNUP_REMINDER',
         title: `Pick a time for ${kid.firstName}`,
         body: `${event.title}: ${kid.firstName} doesn't have a time yet.${last ? ` Sign-ups close ${formatShort(last)}.` : ''}`,
         sms: `${school?.name ?? 'School'}: pick a ${event.title.toLowerCase()} time for ${kid.firstName}: `,
@@ -377,11 +376,11 @@ route.post('/api/admin/signups/:eventId/cancel', async (c) => {
 });
 
 /**
- * Publishing shows it to families and teachers; announcing sends an alert to
- * every parent in its classrooms (and lists it in Alerts) linking to it.
+ * Publishing shows it to families and teachers; announcing emails every
+ * parent with a child in its classrooms (and puts it in their Messages),
+ * linking straight to the sign-up.
  */
 route.post('/api/admin/signups/:eventId/publish', async (c) => {
-  const admin = c.get('user');
   const event = await eventOr404(c);
   if (!event) return c.json({ error: 'Not found' }, 404);
   const body = (await c.req.json().catch(() => ({}))) as { announce?: boolean; title?: string; message?: string };
@@ -393,17 +392,44 @@ route.post('/api/admin/signups/:eventId/publish', async (c) => {
   }
   await putSignupEvent({ ...event, status: 'OPEN', publishedAt: new Date().toISOString() });
 
-  let announced = 0;
-  if (body.announce) {
-    const title = body.title?.trim() || `${event.title} sign-ups are open`;
-    const message = body.message?.trim() || `Pick a time for your child in the app.`;
-    const alert = await sendAlert(admin, {
-      kind: 'REMINDER', title: title.slice(0, 80), message: message.slice(0, 600),
-      audience: 'CLASSROOMS', classroomIds: event.classroomIds,
-    }, `/signups/?event=${event.eventId}`, event.eventId);
-    announced = alert.recipients;
-  }
+  const announced = body.announce
+    ? await announce(event, {
+      title: (body.title?.trim() || `${event.title} sign-ups are open`).slice(0, 80),
+      message: (body.message?.trim() || 'Pick a time for your child in the app.').slice(0, 600),
+    })
+    : 0;
   return c.json({ ok: true, announced });
 });
+
+/** Tells every parent with a child in the sign-up's classrooms. Returns how many it reached. */
+async function announce(event: SignupEvent, text: { title: string; message: string }): Promise<number> {
+  const [school, users, children, links] = await Promise.all([
+    getSchool(event.schoolId), listUsers(event.schoolId), listChildren(event.schoolId), listAllGuardianships(),
+  ]);
+  const kids = new Set(children.filter((k) => event.classroomIds.includes(k.classroomId)).map((k) => k.childId));
+  const parentIds = new Set(links.filter((l) => kids.has(l.childId)).map((l) => l.userId));
+  const parents = users.filter((u) => parentIds.has(u.userId) && u.status !== 'DISABLED');
+  const schoolName = school?.name ?? 'School';
+  const compose = (u: User): ComposedMessage => ({
+    type: 'SIGNUP_OPEN',
+    title: text.title,
+    body: text.message,
+    sms: `${schoolName}: ${text.title}. ${text.message}`.slice(0, 300),
+    emailSubject: `${text.title} — ${schoolName}`,
+    emailText: text.message,
+    link: `/signups/?event=${event.eventId}`,
+    dedupeKey: `signup-open:${event.eventId}:${u.userId}`,
+  });
+
+  // A few at a time: quick enough inside the API's time limit, gentle on the
+  // email sending rate.
+  let reached = 0;
+  for (let i = 0; i < parents.length; i += 8) {
+    const results = await Promise.all(parents.slice(i, i + 8).map((u) =>
+      deliver(u, compose(u), { force: true }).catch((err) => { console.error('announcement failed', u.userId, err); return null; })));
+    reached += results.filter(Boolean).length;
+  }
+  return reached;
+}
 
 export default route;

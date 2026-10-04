@@ -3,9 +3,9 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import {
-  SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, todayIn, type Newsletter,
+  SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
-import { api, type Alert, type ClassList, type Signup, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
+import { api, type ClassList, type Signup, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallPrompt } from '@/components/install-prompt';
@@ -14,7 +14,6 @@ import { Coverage } from '@/components/coverage';
 import { EventList } from '@/components/event-list';
 import { CurriculumCard, groupMatches, myClassroomsOf } from '@/components/newsletter';
 import { NewsletterDeck } from '@/components/newsletter-deck';
-import { AlertCard } from '@/components/alert-card';
 import { SignupTiles } from '@/components/signup-cards';
 import { shownSignup } from '@/lib/features';
 
@@ -29,7 +28,6 @@ export default function HomePage() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [newsletters, setNewsletters] = useState<Newsletter[] | null>(null);
   const [extras, setExtras] = useState<CurriculumItem[]>([]);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
   const [signups, setSignups] = useState<Signup[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +47,6 @@ export default function HomePage() {
       api.get<{ items: CurriculumItem[] }>('/api/curriculum').catch(() => ({ items: [] })),
     ]);
     setExtras(added.items);
-    api.get<{ alerts: Alert[] }>('/api/alerts').then((r) => setAlerts(r.alerts)).catch(() => undefined);
     api.get<{ signups: Signup[] }>('/api/signups').then((r) => setSignups(r.signups.filter(shownSignup))).catch(() => undefined);
     setMine(m);
     setUnread(notes.unread);
@@ -82,7 +79,6 @@ export default function HomePage() {
   const window = new Set([monthOf(today), nextMonth]);
   const soon = mine?.slots.filter((s) => window.has(monthOf(s.date))) ?? [];
   const later = (mine?.slots.length ?? 0) - soon.length;
-  const next = soon[0];
 
   // Everything on Home is one month, named once at the top. The calendar card
   // is that month's events, past ones included (dimmed); only when a month
@@ -92,13 +88,6 @@ export default function HomePage() {
   const eventMonth = eventsIn(thisMonth).length ? thisMonth : nextMonth;
   const events = eventsIn(eventMonth);
 
-  // An alert is for the day it's sent: Home shows today's (school time) and
-  // drops them at midnight; the Alerts tab keeps them all. A sign-up's
-  // announcement isn't repeated here, as its own card says it.
-  const schoolToday = todayIn('America/New_York');
-  const recentAlerts = alerts
-    .filter((a) => !a.signupEventId && todayIn('America/New_York', new Date(a.createdAt)) === schoolToday)
-    .slice(0, 2);
   const myClassrooms = myClassroomsOf(me);
   const latest = newsletters?.[0] ?? null;
   // The latest letter's curriculum for each of my groups, with whatever the
@@ -122,18 +111,6 @@ export default function HomePage() {
           {monthLabel(thisMonth).replace(/ \d{4}$/, '')} at BMS
         </h1>
       </header>
-
-      {/* Today's alerts lead Home: "closed tomorrow" can't wait. */}
-      {recentAlerts.length > 0 && (
-        <section aria-label="Alerts" className="mb-4 space-y-2">
-          {recentAlerts.map((a) => (
-            <AlertCard key={a.alertId} alert={a} classroomNames={me?.classroomNames ?? {}} compact />
-          ))}
-          {alerts.length > recentAlerts.length && (
-            <Link href="/alerts/" className="block px-1 text-xs text-muted underline underline-offset-2">All alerts</Link>
-          )}
-        </section>
-      )}
 
       {error && <div className="mb-3"><Banner tone="error">{error}</Banner></div>}
       {flash && <div className="mb-3"><Banner tone="success">{flash}</Banner></div>}

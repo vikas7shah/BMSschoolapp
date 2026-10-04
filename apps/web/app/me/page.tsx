@@ -6,7 +6,7 @@ import { ApiError, api, type Notification } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallCard } from '@/components/install-card';
-import { Banner, Button, Card, Field, PageHeader, inputClass } from '@/components/ui';
+import { Banner, Card, Field, PageHeader, inputClass } from '@/components/ui';
 import { disablePush, enablePush, needsHomeScreenInstall, pushSupported } from '@/lib/push';
 
 const CHANNEL_COPY: Record<Channel, { label: string; hint: string }> = {

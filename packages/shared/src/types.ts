@@ -133,34 +133,6 @@ export interface SignupChildBooking {
   slotSk: string;
 }
 
-/** What an alert is about; decides its colour and the template it starts from. */
-export type AlertKind = 'CLOSURE' | 'EARLY_DISMISSAL' | 'REMINDER' | 'GENERAL';
-
-/**
- * A message from a teacher to their class, or from the office to the whole
- * school or chosen classrooms: "School is closed tomorrow — snow day".
- */
-export interface SchoolAlert {
-  schoolId: string;
-  /** "<createdAt>#<alertId>" — newest last; read in reverse. */
-  sk: string;
-  alertId: string;
-  kind: AlertKind;
-  title: string;
-  message: string;
-  audience: 'SCHOOL' | 'CLASSROOMS';
-  /** The classrooms it went to, when not the whole school. */
-  classroomIds: string[];
-  sentByUserId: string;
-  sentByName: string;
-  sentByRole: Role;
-  /** How many people it was delivered to. */
-  recipients: number;
-  /** Set when it announces a sign-up; Home shows the sign-up's own card instead. */
-  signupEventId?: string;
-  createdAt: string;
-}
-
 /** Areas a teacher can add to; the newsletter's six first, then the Montessori areas. */
 export const CLASS_CURRICULUM_AREAS = [
   'Practical life', 'Sensorial', 'Language', 'Math',
@@ -301,7 +273,8 @@ export type NotificationType =
   | 'SLOT_RELEASED'
   | 'WELCOME'
   | 'ADMIN_BROADCAST'
-  | 'ALERT';
+  | 'SIGNUP_OPEN'
+  | 'SIGNUP_REMINDER';
 
 export type DeliveryResult = 'SENT' | 'FAILED' | 'SKIPPED';
 

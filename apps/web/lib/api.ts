@@ -140,22 +140,6 @@ export interface Signup {
   notBooked?: { childId: string; name: string; classroomId: string; parents: string[] }[];
 }
 
-/** An alert as the Alerts tab shows it. */
-export interface Alert {
-  alertId: string;
-  kind: 'CLOSURE' | 'EARLY_DISMISSAL' | 'REMINDER' | 'GENERAL';
-  title: string;
-  message: string;
-  audience: 'SCHOOL' | 'CLASSROOMS';
-  classroomIds: string[];
-  sentByName: string;
-  sentByRole: string;
-  recipients: number;
-  /** Set when it announces a sign-up. */
-  signupEventId?: string;
-  createdAt: string;
-}
-
 /** Something a teacher or the office added to a curriculum group's month. */
 export interface CurriculumItem {
   itemId: string;

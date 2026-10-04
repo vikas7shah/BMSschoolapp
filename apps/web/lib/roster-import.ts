@@ -252,7 +252,7 @@ function resolveClassroom(ctx: Ctx, raw: string): { classroomId: string; name: s
 }
 
 function finish(
-  opts: BuildOptions, ctx: Ctx, layout: Layout,
+  ctx: Ctx, layout: Layout,
   families: ImportFamily[], orphans: OrphanChild[],
   skipped: SkippedParent[], rejected: ImportPlan['rejected'],
 ): ImportPlan {
@@ -507,7 +507,7 @@ function buildGrouped(opts: BuildOptions): ImportPlan {
     }
   }
 
-  return finish(opts, ctx, 'GROUPED_BY_CHILD', [...families.values()], orphans,
+  return finish(ctx, 'GROUPED_BY_CHILD', [...families.values()], orphans,
     [...skipped.values()], rejected);
 }
 
@@ -592,7 +592,7 @@ function buildRowPerParent(opts: BuildOptions): ImportPlan {
     }, sheetRow);
   });
 
-  return finish(opts, ctx, 'ROW_PER_PARENT', [...families.values()], [], [], rejected);
+  return finish(ctx, 'ROW_PER_PARENT', [...families.values()], [], [], rejected);
 }
 
 /** A starter file in the exact shape the importer expects. */

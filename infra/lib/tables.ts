@@ -24,7 +24,6 @@ export class Tables extends Construct {
   readonly loginChannels: ddb.Table;
   readonly newsletters: ddb.Table;
   readonly curriculum: ddb.Table;
-  readonly alerts: ddb.Table;
   readonly signups: ddb.Table;
 
   constructor(scope: Construct, id: string, props: TablesProps) {
@@ -173,13 +172,6 @@ export class Tables extends Construct {
       sortKey: { name: 'sk', type: S },
     });
 
-    // Alerts sent by teachers and the office, newest last by sort key.
-    this.alerts = new ddb.Table(this, 'Alerts', {
-      ...durable,
-      partitionKey: { name: 'schoolId', type: S },
-      sortKey: { name: 'sk', type: S },
-    });
-
     // Conferences and observations: each sign-up, its times, and which time
     // each child holds, all under the school so one query reads a sign-up.
     this.signups = new ddb.Table(this, 'Signups', {
@@ -205,7 +197,6 @@ export class Tables extends Construct {
       TABLE_LOGIN_CHANNEL: this.loginChannels.tableName,
       TABLE_NEWSLETTERS: this.newsletters.tableName,
       TABLE_CURRICULUM: this.curriculum.tableName,
-      TABLE_ALERTS: this.alerts.tableName,
       TABLE_SIGNUPS: this.signups.tableName,
     };
   }
@@ -214,8 +205,7 @@ export class Tables extends Construct {
     return [
       this.users, this.children, this.guardianships, this.classrooms, this.slots,
       this.schools, this.notifications, this.push, this.dedupe, this.rateLimit,
-      this.loginChannels, this.newsletters, this.curriculum, this.alerts,
-      this.signups,
+      this.loginChannels, this.newsletters, this.curriculum, this.signups,
     ];
   }
 }

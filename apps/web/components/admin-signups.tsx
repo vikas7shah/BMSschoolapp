@@ -6,7 +6,7 @@ import { formatShort } from '@bms/shared';
 import { ApiError, api, type Signup } from '@/lib/api';
 import { clock, clockRange } from '@/lib/time';
 import { CONFERENCES_ENABLED, shownSignup } from '@/lib/features';
-import { Banner, Button, Card, EmptyState, Skeleton, inputClass } from './ui';
+import { Button, Card, EmptyState, Skeleton, inputClass } from './ui';
 
 const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
   DRAFT: { label: 'Draft', cls: 'bg-black/5 text-muted' },

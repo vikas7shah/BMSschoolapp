@@ -152,15 +152,6 @@ export const curriculumGroupsSchema = z.object({
   groups: z.array(z.string().trim().min(1).max(60)).max(10),
 });
 
-/** An alert as the sender writes it. */
-export const alertSchema = z.object({
-  kind: z.enum(['CLOSURE', 'EARLY_DISMISSAL', 'REMINDER', 'GENERAL']),
-  title: z.string().trim().min(1, 'Add a title').max(80, 'Keep the title under 80 characters'),
-  message: z.string().trim().min(1, 'Write the message').max(600, 'Keep the message under 600 characters'),
-  audience: z.enum(['SCHOOL', 'CLASSROOMS']),
-  classroomIds: z.array(z.string().min(1)).max(20).default([]),
-});
-
 const hhmm = z.string().regex(/^\d{2}:\d{2}$/, 'Times look like 08:30');
 const civil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates look like 2026-12-01');
 
@@ -219,7 +210,6 @@ export const newsletterSchema = z.object({
     }),
   })).max(10).default([]),
 });
-export type NewsletterInput = z.infer<typeof newsletterSchema>;
 
 export const importChildSchema = z.object({
   firstName: z.string().min(1).max(60),
@@ -260,13 +250,6 @@ export const importRosterSchema = z.object({
 });
 
 export type ImportOutcome = 'CREATED' | 'LINKED' | 'SKIPPED_EXISTS' | 'FAILED';
-
-export interface ImportSummary {
-  created: number;
-  skipped: number;
-  failed: number;
-  childrenCreated: number;
-}
 
 export interface ImportResult {
   /** Phone if there is one, otherwise the email — whatever identifies the row. */

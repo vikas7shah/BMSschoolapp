@@ -6,12 +6,6 @@
 
 export type CivilDate = string; // YYYY-MM-DD
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-export function isCivilDate(v: unknown): v is CivilDate {
-  return typeof v === 'string' && DATE_RE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
-}
-
 /** Today's civil date in the given IANA timezone. */
 export function todayIn(timezone: string, now: Date = new Date()): CivilDate {
   return new Intl.DateTimeFormat('en-CA', {

@@ -3,8 +3,9 @@
 Replaces the snack-day whiteboard with an app parents can use from their phone,
 and — the part the whiteboard could never do — reminds them.
 
-**Live:** https://bms.homeoperationshub.com
-**AWS account:** 778715730128 · **Region:** us-east-1 · **Stack:** `Bms-prod`
+**Live:** https://bms.homeoperationshub.com (stack `Bms-prod`, deployed from `main`)
+**Dev:** https://d27e7v1u9jttm.cloudfront.net (stack `Bms-dev`, deployed from `dev`, sample data only)
+**AWS account:** 778715730128 · **Region:** us-east-1
 
 ---
 
@@ -406,12 +407,12 @@ being blank, and tapping it names the holiday.
 
 ## Home is a dashboard
 
-One grid, every tile the same box (236px tall, columns to fit the screen —
-three on a laptop, one on a phone), named for the month at the top
-("September at BMS"). Order: snack-day coverage (admins), a tile per booked
-snack day this month and next, the newsletter deck, the calendar, a
-curriculum tile per classroom the family has a child in. A family with three
-children simply uses more tiles; nothing scrolls inside one.
+One grid of tiles, columns to fit the screen (three on a laptop, one on a
+phone), named for the month at the top ("October at BMS"). Rows are at least
+236px; a curriculum card with the teachers' additions takes the height it
+needs, and every tile in its row grows to match. Order: snack-day coverage
+(admins), open sign-ups, a teacher's class, the family's snack days, the
+newsletter deck, the calendar, and a curriculum tile per classroom.
 
 ## A family's days are the family's
 
@@ -469,6 +470,55 @@ banner above the calendar.
 "Too late" takes precedence over "full", because it is the more specific answer.
 
 Changing `RELEASE_NOTICE_DAYS` changes both the rule and the wording.
+
+## Teachers
+
+The office adds teachers on **Admin → Teachers** with the classrooms they
+teach and an email or mobile number to sign in with. A teacher sees, for
+their own rooms only: a **Class** list (each child, their parents and how to
+reach them), the class snack calendar, and the shared newsletter and school
+calendar. Everything is read-only — the API refuses any snack write from a
+teacher (`readOnlyForTeachers` in `services/api/src/app.ts`) — with one
+exception: the curriculum. Teachers get no reminders and are not on the family
+roster. Their sign-in details are the office's to change.
+
+## Curriculum additions
+
+The newsletter lists six areas per curriculum group ("Classroom 1",
+"Elementary"). On the **Curriculum** tab a teacher chooses the groups they
+teach — Elementary has no classroom, so they pick it — and adds items to a
+newsletter month ("Math: golden beads"). Parents of that group see them beside
+the newsletter's, on Home and in the newsletter. They are stored apart from
+the newsletter (`ClassCurriculum` table), so the office re-pasting a letter
+never wipes them. The office can add to any group from Admin → News.
+
+## Sign-ups (parent observations)
+
+**Admin → Sign-ups.** The office creates a parent observation for one or more
+classrooms, adds days and times (20 minutes, five families each), and
+publishes it — optionally emailing every parent in those classrooms. Nothing
+shows until published.
+
+- A family gets a Home card per child: "Pick a time for Ava", which becomes
+  "Observation day · Ava" with the date and time once booked. One time per
+  child; switching is allowed while another time has room. Once every time is
+  taken, or sign-ups have closed (the day before the first time), they
+  contact the school. Families see counts, never other families' names.
+- Teachers see their classroom's sheet with names and email, who hasn't
+  booked, and a **Remind them** button. The office sees every classroom and
+  can seat (past the limit), move or remove a family, add a seat, and print.
+- A classroom is in at most one open observation at a time; taking a
+  classroom off a sign-up removes its times, or is refused while families are
+  booked there.
+- A booking and its seat are written in one DynamoDB transaction
+  (`packages/backend/src/signups.ts`), so a seat is never double-sold.
+
+Parent–teacher conferences use the same machinery (one family per time,
+irregular hours per classroom) and are built but switched off:
+`CONFERENCES_ENABLED` in `apps/web/lib/features.ts`.
+
+School-wide alerts (snow days, half days) live on the `alerts` branch, set
+aside for now.
 
 ## How the reminders work
 
@@ -581,7 +631,8 @@ services/reminders   The hourly sweep
 services/auth-triggers  Cognito define/create/verify challenge
 apps/web             Next.js PWA (static export), incl. the spreadsheet reader
 infra                CDK stack
-scripts              setup, otp, sms-sandbox, verify-sender, reminders, icons
+scripts              setup, otp, dev-login, test-families, seed-dev, reminders,
+                     sms-sandbox, verify-sender, prepare-sms-v10, icons
 ```
 
 **Two traps worth knowing about**, both of which shipped and had to be fixed:
@@ -654,8 +705,8 @@ node scripts/prune-roster.mjs --keep <userId>,<userId>
 Reports only; add `--apply` to do it. User ids are on the admin Families
 screen. The roster can be re-imported from the school's spreadsheet afterwards.
 
-**Test families.** Three parents — Yogita1/2/3 Test, one child each, one per
-classroom — whose mail goes to Amazon's SES mailbox simulator (`success+test1@simulator.amazonses.com` and so on) — accepted and discarded, so the checks never land in anyone's inbox. They exist to exercise every reminder scenario against the live app.
+**Test families.** Three parents — Sample Parent and Test2/Test3 Parent, one
+child each, one per classroom — whose mail goes to Amazon's SES mailbox simulator (`success+test1@simulator.amazonses.com` and so on) — accepted and discarded, so the checks never land in anyone's inbox. They exist to exercise every reminder scenario against the live app.
 `npm run deploy` seeds them after every deploy, through the real admin API,
 and checks the dashboard sees one unbooked family per classroom — so it doubles
 as a smoke test of sign-in, import and overview. Idempotent. Before go-live:
@@ -683,6 +734,22 @@ npm run deploy
 
 Builds the shared package and the web app, then deploys the stack. Use
 `npm run diff` first to see what would change.
+
+**The dev environment** is a second, separate copy of the app (`Bms-dev`):
+its own tables, sign-ins and address, nothing shared with live except the
+AWS account. Build there first, then merge `dev` into `main` and deploy live.
+
+```bash
+npm run deploy:dev
+```
+
+```bash
+npm run seed-dev
+```
+
+`seed-dev` fills it with sample data — classrooms, the live newsletters, made-up
+families on the SES simulator — and refuses to run against anything but
+`Bms-dev`. Its admin code: `BMS_STACK=Bms-dev npm run dev-login`.
 
 ```bash
 npm run dev:web
