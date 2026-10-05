@@ -39,5 +39,5 @@ new BmsStack(app, `Bms-${stage}`, {
     account: process.env.CDK_DEFAULT_ACCOUNT,
     region: process.env.CDK_DEFAULT_REGION ?? 'us-east-1',
   },
-  description: 'Montessori school parent operations — snack sign-up and reminders',
+  description: 'BMS Families — the Burlington Montessori School parent app',
 });

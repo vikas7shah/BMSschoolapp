@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   SCHOOL_EVENTS, formatShort, monthLabel, monthOf, relativeLabel, type Newsletter,
 } from '@bms/shared';
-import { api, type ClassList, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
+import { api, type ClassList, type Signup, type CurriculumItem, type Notification, type OverviewData, type Slot, type SnackBoard } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallPrompt } from '@/components/install-prompt';
@@ -14,6 +14,8 @@ import { Coverage } from '@/components/coverage';
 import { EventList } from '@/components/event-list';
 import { CurriculumCard, groupMatches, myClassroomsOf } from '@/components/newsletter';
 import { NewsletterDeck } from '@/components/newsletter-deck';
+import { SignupTiles } from '@/components/signup-cards';
+import { shownSignup } from '@/lib/features';
 
 
 interface MineResponse { today: string; slots: Slot[] }
@@ -26,6 +28,7 @@ export default function HomePage() {
   const [overview, setOverview] = useState<OverviewData | null>(null);
   const [newsletters, setNewsletters] = useState<Newsletter[] | null>(null);
   const [extras, setExtras] = useState<CurriculumItem[]>([]);
+  const [signups, setSignups] = useState<Signup[]>([]);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isAdmin = me?.role === 'ADMIN';
@@ -44,6 +47,7 @@ export default function HomePage() {
       api.get<{ items: CurriculumItem[] }>('/api/curriculum').catch(() => ({ items: [] })),
     ]);
     setExtras(added.items);
+    api.get<{ signups: Signup[] }>('/api/signups').then((r) => setSignups(r.signups.filter(shownSignup))).catch(() => undefined);
     setMine(m);
     setUnread(notes.unread);
     setNewsletters(news.newsletters);
@@ -75,7 +79,6 @@ export default function HomePage() {
   const window = new Set([monthOf(today), nextMonth]);
   const soon = mine?.slots.filter((s) => window.has(monthOf(s.date))) ?? [];
   const later = (mine?.slots.length ?? 0) - soon.length;
-  const next = soon[0];
 
   // Everything on Home is one month, named once at the top. The calendar card
   // is that month's events, past ones included (dimmed); only when a month
@@ -123,6 +126,9 @@ export default function HomePage() {
         {isAdmin && (overview
           ? <Coverage overview={overview} tile onChanged={(m) => { setFlash(m); setError(null); void loadOverview(); }} onError={setError} />
           : <Skeleton className="h-full" />)}
+
+        {/* Conference and observation sign-ups lead while they're on. */}
+        {me && <SignupTiles signups={signups} me={me} />}
 
         {isTeacher && (classes
           ? classes.map((room) => (

@@ -28,7 +28,7 @@ export async function setReminderSwitches(
   await ddb.send(new UpdateCommand({
     TableName: T.schools,
     Key: { schoolId },
-    UpdateExpression: `SET ${entries.map(([k], i) => `#k${i} = :v${i}`).join(', ')}`,
+    UpdateExpression: `SET ${entries.map((_, i) => `#k${i} = :v${i}`).join(', ')}`,
     ExpressionAttributeNames: Object.fromEntries(entries.map(([k], i) => [`#k${i}`, k])),
     ExpressionAttributeValues: Object.fromEntries(entries.map(([, v], i) => [`:v${i}`, v])),
     ConditionExpression: 'attribute_exists(schoolId)',
@@ -38,10 +38,6 @@ export async function setReminderSwitches(
 export async function getSchool(schoolId: string): Promise<School | null> {
   const r = await ddb.send(new GetCommand({ TableName: T.schools, Key: { schoolId } }));
   return (r.Item as School) ?? null;
-}
-
-export async function putSchool(school: School): Promise<void> {
-  await ddb.send(new PutCommand({ TableName: T.schools, Item: school }));
 }
 
 /* -------------------------------------------------------------- newsletters */
@@ -585,12 +581,6 @@ export async function deleteOpenSlot(classroomId: string, date: string): Promise
   }
 }
 
-export async function deleteSlot(classroomId: string, date: string): Promise<void> {
-  await ddb.send(new DeleteCommand({
-    TableName: T.slots, Key: { classroomId, sk: slotSk(date) },
-  }));
-}
-
 /* ------------------------------------------------------------ notifications */
 
 /** Sort key puts the newest first when queried in reverse. */
@@ -700,10 +690,4 @@ export async function putLoginChannel(username: string, hint: LoginChannel): Pro
     TableName: T.loginChannels,
     Item: { username: username.toLowerCase(), ...hint, createdAt: nowIso(), ttl: Math.floor(Date.now() / 1000) + 900 },
   }));
-}
-
-export async function getLoginChannel(username: string): Promise<LoginChannel | null> {
-  const r = await ddb.send(new GetCommand({ TableName: T.loginChannels, Key: { username: username.toLowerCase() } }));
-  if (!r.Item) return null;
-  return { channel: r.Item.channel, to: r.Item.to, name: r.Item.name } as LoginChannel;
 }

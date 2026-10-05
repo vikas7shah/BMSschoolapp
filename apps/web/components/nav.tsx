@@ -29,6 +29,9 @@ export function BottomNav() {
       ]
       : ITEMS;
 
+  // Seven tabs only fit a phone with slightly smaller labels.
+  const compact = items.length > 6;
+
   const isActive = (href: string) =>
     href === '/' ? pathname === '/' : pathname.startsWith(href.replace(/\/$/, ''));
 
@@ -46,7 +49,7 @@ export function BottomNav() {
               <Link
                 href={href}
                 aria-current={active ? 'page' : undefined}
-                className={`flex min-h-16 flex-col items-center justify-center gap-1 text-[11px]
+                className={`flex min-h-16 flex-col items-center justify-center gap-1 ${compact ? 'text-[10px] tracking-tight' : 'text-[11px]'}
                             font-medium transition-colors
                             ${active ? 'text-sage' : 'text-muted hover:text-ink'}`}
               >

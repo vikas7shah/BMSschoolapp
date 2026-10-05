@@ -23,6 +23,7 @@ export const env = {
     loginChannels: req('TABLE_LOGIN_CHANNEL'),
     newsletters: req('TABLE_NEWSLETTERS'),
     curriculum: req('TABLE_CURRICULUM'),
+    signups: req('TABLE_SIGNUPS'),
   },
   cognito: {
     userPoolId: req('COGNITO_USER_POOL_ID'),

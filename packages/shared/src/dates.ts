@@ -6,12 +6,6 @@
 
 export type CivilDate = string; // YYYY-MM-DD
 
-const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
-
-export function isCivilDate(v: unknown): v is CivilDate {
-  return typeof v === 'string' && DATE_RE.test(v) && !Number.isNaN(Date.parse(`${v}T00:00:00Z`));
-}
-
 /** Today's civil date in the given IANA timezone. */
 export function todayIn(timezone: string, now: Date = new Date()): CivilDate {
   return new Intl.DateTimeFormat('en-CA', {
@@ -96,4 +90,28 @@ export function relativeLabel(date: CivilDate, today: CivilDate): string {
 /** Monday of the week containing `date`. */
 export function startOfWeek(date: CivilDate): CivilDate {
   return addDays(date, -(isoWeekday(date) - 1));
+}
+
+/* ------------------------------------------------------------ times of day */
+
+/** "08:20" → 500 */
+export const minutesOf = (hhmm: string): number => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
+
+/** "08:30" + 20 → "08:50" */
+export function addMinutes(hhmm: string, minutes: number): string {
+  const t = minutesOf(hhmm) + minutes;
+  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
+}
+
+/** "08:20" → "8:20 am" */
+export function clock(hhmm: string): string {
+  const [h, m] = hhmm.split(':').map(Number) as [number, number];
+  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
+}
+
+/** "8:00–8:20 am", or "11:40 am–12:00 pm" when it crosses noon. */
+export function clockRange(start: string, end: string): string {
+  const a = clock(start);
+  const b = clock(end);
+  return a.slice(-2) === b.slice(-2) ? `${a.slice(0, -3)}–${b}` : `${a}–${b}`;
 }

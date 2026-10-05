@@ -114,13 +114,6 @@ export function closureReason(
   return undefined;
 }
 
-/** Events falling on a date, ranges included. */
-export function eventsOn(
-  date: CivilDate, events: SchoolEvent[] = SCHOOL_EVENTS,
-): SchoolEvent[] {
-  return events.filter((e) => date >= e.date && date <= (e.endDate ?? e.date));
-}
-
 /**
  * Whether a snack day should exist. False outside the school year and on any
  * day the school is closed.

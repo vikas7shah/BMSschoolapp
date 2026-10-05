@@ -108,6 +108,39 @@ export interface Me {
   curriculumGroups?: string[];
 }
 
+/** One time in a sign-up. Staff get `bookings`; a family sees counts only. */
+export interface SignupSlotView {
+  slotId: string;
+  classroomId: string;
+  date: string;
+  start: string;
+  end: string;
+  capacity: number;
+  booked: number;
+  bookings?: { childId: string; childName: string; parentName: string; email?: string; phone?: string; byOffice: boolean }[];
+}
+
+/** A conference or observation sign-up, as the viewer may see it. */
+export interface Signup {
+  eventId: string;
+  kind: 'CONFERENCE' | 'OBSERVATION';
+  title: string;
+  status: 'DRAFT' | 'OPEN' | 'CLOSED';
+  classroomIds: string[];
+  slotMinutes: number;
+  capacity: number;
+  location: string;
+  closesOn: string | null;
+  /** Families can still book or switch. */
+  open: boolean;
+  /** Every day gets every time ("08:30"). */
+  days: string[];
+  times: string[];
+  slots: SignupSlotView[];
+  children: { childId: string; firstName: string; classroomId: string; slotId: string | null }[];
+  notBooked?: { childId: string; name: string; classroomId: string; parents: string[] }[];
+}
+
 /** Something a teacher or the office added to a curriculum group's month. */
 export interface CurriculumItem {
   itemId: string;

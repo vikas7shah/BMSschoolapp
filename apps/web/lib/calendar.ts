@@ -6,7 +6,8 @@ import { addDays, startOfWeek, type CivilDate } from '@bms/shared';
  * rather than a coloured dot.
  *
  * Rows always run Monday to Friday, so the first and last may spill into the
- * neighbouring months.
+ * neighbouring months (the grid leaves those cells blank). A row with no
+ * weekday of the month at all — a month starting on a weekend — is dropped.
  */
 export function monthWeeks(month: string): CivilDate[][] {
   const year = Number(month.slice(0, 4));
@@ -18,7 +19,8 @@ export function monthWeeks(month: string): CivilDate[][] {
   const weeks: CivilDate[][] = [];
   const lastMonday = startOfWeek(last);
   for (let monday = startOfWeek(`${month}-01`); monday <= lastMonday; monday = addDays(monday, 7)) {
-    weeks.push([0, 1, 2, 3, 4].map((i) => addDays(monday, i)));
+    const week = [0, 1, 2, 3, 4].map((i) => addDays(monday, i));
+    if (week.some((d) => d.startsWith(month))) weeks.push(week);
   }
   return weeks;
 }

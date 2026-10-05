@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Fills the dev stack with sample data so every screen has something to show:
- * the school (reminders paused), three classrooms, the live newsletters,
- * made-up families and a test teacher. Every address is the SES mailbox
+ * the school (reminders paused), three classrooms, the live newsletters and
+ * made-up families. Every address is the SES mailbox
  * simulator and every number a fictional 555 line, so nothing reaches a person.
  *
  *   BMS_STACK=Bms-dev node scripts/seed-dev.mjs
@@ -62,7 +62,7 @@ for (const n of prodNews) {
 }
 console.log(`✓ ${prodNews.length} newsletter(s)`);
 
-/* ------------------------------------- families and a teacher, via the API */
+/* ------------------------------------------------ families, via the API */
 const base = outputs.AppUrl;
 const sm = new SecretsManagerClient({ region: REGION });
 const { SecretString: code } = await sm.send(new GetSecretValueCommand({ SecretId: `bms-${STACK.replace(/^Bms-/, '')}-dev-login` }));
@@ -103,13 +103,6 @@ KIDS.forEach(([kid, last, mum, dad], i) => {
 const imported = await call('POST', '/api/admin/parents/import', { families });
 console.log(`✓ Families: ${JSON.stringify(imported.summary ?? imported)}`);
 
-const { teachers } = await call('GET', '/api/admin/teachers');
-if (!teachers.some((t) => t.email === sim('teacher1'))) {
-  await call('POST', '/api/admin/teachers', {
-    firstName: 'Test', lastName: 'Teacher', email: sim('teacher1'), classroomIds: [rooms[0].classroomId],
-  });
-}
-console.log(`✓ Test teacher (${sim('teacher1')}) for ${rooms[0].name}`);
 
 /* ------------------------------------ snack days, and some of them taken */
 await new LambdaClient({ region: REGION }).send(new InvokeCommand({

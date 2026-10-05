@@ -152,6 +152,33 @@ export const curriculumGroupsSchema = z.object({
   groups: z.array(z.string().trim().min(1).max(60)).max(10),
 });
 
+const hhmm = z.string().regex(/^\d{2}:\d{2}$/, 'Times look like 08:30');
+const civil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates look like 2026-12-01');
+
+/** A new sign-up. */
+export const signupEventSchema = z.object({
+  kind: z.enum(['CONFERENCE', 'OBSERVATION']),
+  title: z.string().trim().min(1, 'Give it a name').max(80),
+  classroomIds: z.array(z.string().min(1)).min(1, 'Choose at least one classroom'),
+  slotMinutes: z.number().int().min(5).max(120),
+  capacity: z.number().int().min(1).max(30),
+  location: z.string().trim().max(80).default('In person'),
+});
+
+/** An observation's days and times; its slots become every day × every time. */
+export const signupScheduleSchema = z.object({
+  days: z.array(civil).max(10),
+  times: z.array(hhmm).max(12),
+});
+
+/** Hours to fill with times: 8:00 → 11:20 makes ten 20-minute times. */
+export const signupHoursSchema = z.object({
+  classroomId: z.string().min(1),
+  date: civil,
+  start: hhmm,
+  end: hhmm,
+});
+
 export const generateSlotsSchema = z.object({
   classroomId: z.string().min(1),
   from: civilDateSchema,
@@ -188,7 +215,6 @@ export const newsletterSchema = z.object({
     }),
   })).max(10).default([]),
 });
-export type NewsletterInput = z.infer<typeof newsletterSchema>;
 
 export const importChildSchema = z.object({
   firstName: z.string().min(1).max(60),
@@ -229,13 +255,6 @@ export const importRosterSchema = z.object({
 });
 
 export type ImportOutcome = 'CREATED' | 'LINKED' | 'SKIPPED_EXISTS' | 'FAILED';
-
-export interface ImportSummary {
-  created: number;
-  skipped: number;
-  failed: number;
-  childrenCreated: number;
-}
 
 export interface ImportResult {
   /** Phone if there is one, otherwise the email — whatever identifies the row. */

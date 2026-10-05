@@ -53,14 +53,6 @@ export async function deleteCognitoUser(username: string): Promise<void> {
   }
 }
 
-export async function setCognitoUserId(phone: string, userId: string): Promise<void> {
-  await cognito.send(new AdminUpdateUserAttributesCommand({
-    UserPoolId: env.cognito.userPoolId,
-    Username: phone,
-    UserAttributes: [{ Name: 'custom:userId', Value: userId }],
-  }));
-}
-
 /**
  * Keeps the Cognito copy of a parent's number in step with the roster. It is
  * only a fallback for delivering a code, so a missing Cognito user is ignored.

@@ -68,6 +68,78 @@ export interface CurriculumGroup {
   subjects: Record<CurriculumSubject, string>;
 }
 
+/** A conference has one family per time; an observation several. */
+export type SignupKind = 'CONFERENCE' | 'OBSERVATION';
+
+/**
+ * A sign-up the office runs: parent–teacher conferences, parent observations.
+ * Families book a time in their child's classroom, one per child. Hidden from
+ * families and teachers until published.
+ */
+export interface SignupEvent {
+  schoolId: string;
+  /** "EVENT#<eventId>" */
+  sk: string;
+  eventId: string;
+  kind: SignupKind;
+  title: string;
+  status: 'DRAFT' | 'OPEN' | 'CLOSED';
+  classroomIds: string[];
+  /** Length of one time, in minutes. */
+  slotMinutes: number;
+  /** Families per time, for new times; each time can be raised on its own. */
+  capacity: number;
+  /** Last day families can book or switch. Unset: the day before the first time. */
+  closesOn?: string;
+  location: string;
+  /**
+   * An observation's schedule: every day gets every time ("08:30"), so its
+   * slots are days × times. Conferences, with irregular hours, leave these
+   * unset and are read from their slots.
+   */
+  days?: string[];
+  times?: string[];
+  createdAt: string;
+  publishedAt?: string;
+}
+
+export interface SignupBooking {
+  childId: string;
+  childName: string;
+  userId: string;
+  parentName: string;
+  bookedAt: string;
+  /** Booked by the office rather than the family. */
+  byOffice?: boolean;
+}
+
+/** One time in one classroom, and who has booked it. */
+export interface SignupSlot {
+  schoolId: string;
+  /** "SLOT#<eventId>#<classroomId>#<date>#<HH:MM>" */
+  sk: string;
+  eventId: string;
+  classroomId: string;
+  date: string;
+  /** "08:00" */
+  start: string;
+  end: string;
+  capacity: number;
+  booked: number;
+  /** Keyed by childId, so a booking is added or removed without a read. */
+  bookings: Record<string, SignupBooking>;
+}
+
+/** Which time a child holds — one per child per sign-up. */
+export interface SignupChildBooking {
+  schoolId: string;
+  /** "BOOK#<eventId>#<childId>" */
+  sk: string;
+  eventId: string;
+  childId: string;
+  slotSk: string;
+}
+
 /** Areas a teacher can add to; the newsletter's six first, then the Montessori areas. */
 export const CLASS_CURRICULUM_AREAS = [
   'Practical life', 'Sensorial', 'Language', 'Math',
@@ -207,7 +279,9 @@ export type NotificationType =
   | 'SLOT_CLAIMED'
   | 'SLOT_RELEASED'
   | 'WELCOME'
-  | 'ADMIN_BROADCAST';
+  | 'ADMIN_BROADCAST'
+  | 'SIGNUP_OPEN'
+  | 'SIGNUP_REMINDER';
 
 export type DeliveryResult = 'SENT' | 'FAILED' | 'SKIPPED';
 

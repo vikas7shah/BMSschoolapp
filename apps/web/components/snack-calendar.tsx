@@ -118,6 +118,10 @@ export function SnackCalendar({
           const outside = !slot && !closed && outOfYear(date);
           const name = slot?.claimedForChildName ?? slot?.claimedByName;
 
+          // Days from the month before or after only hold the columns in
+          // place; the grid shows this month and nothing else.
+          if (!inMonth) return <div key={date} aria-hidden className="min-h-16" />;
+
           return (
             <button
               key={date}
@@ -129,7 +133,7 @@ export function SnackCalendar({
               className={[
                 'flex min-h-16 flex-col items-center justify-start gap-0.5 rounded-xl px-1 py-1.5',
                 'text-center transition-colors',
-                !inMonth || outside ? 'opacity-35' : '',
+                outside ? 'opacity-35' : '',
                 !slot ? `cursor-default ${closed ? 'bg-clay-soft/50' : 'bg-transparent'}`
                   : slot.isMine ? 'bg-sage text-white'
                   : slot.status === 'CLAIMED' ? 'bg-sage-soft text-sage-dark'

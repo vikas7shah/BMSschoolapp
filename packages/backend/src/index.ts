@@ -7,3 +7,4 @@ export * from './notify.js';
 export * from './publish.js';
 export * from './coverage.js';
 export * from './invoke.js';
+export * from './signups.js';
