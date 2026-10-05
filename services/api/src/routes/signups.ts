@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { ulid } from 'ulid';
 import {
-  addDays, formatShort, signupEventSchema, signupHoursSchema, signupScheduleSchema, todayIn,
+  addDays, addMinutes, clock, formatShort, minutesOf, signupEventSchema, signupHoursSchema, signupScheduleSchema, todayIn,
   type ComposedMessage, type SignupEvent, type SignupSlot, type User,
 } from '@bms/shared';
 import {
@@ -12,14 +12,6 @@ import {
 import type { Vars } from '../app.js';
 
 const route = new Hono<{ Variables: Vars }>();
-
-/** "08:20" → "8:20 am" */
-export const clock = (hhmm: string) => {
-  const [h, m] = hhmm.split(':').map(Number) as [number, number];
-  return `${((h + 11) % 12) + 1}:${String(m).padStart(2, '0')} ${h < 12 ? 'am' : 'pm'}`;
-};
-const minutes = (hhmm: string) => Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5));
-const hhmmOf = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 
 /** The last day families can book: as set, or the day before the first time. */
 function closesOn(event: SignupEvent, slots: SignupSlot[]): string | null {
@@ -76,14 +68,14 @@ route.get('/api/signups', async (c) => {
     out.push({
       eventId: event.eventId, kind: event.kind, title: event.title, status: event.status,
       classroomIds: event.classroomIds, slotMinutes: event.slotMinutes, capacity: event.capacity,
-      location: event.location, closesOn: closesOn(event, slots), setClosesOn: event.closesOn ?? null,
+      location: event.location, closesOn: closesOn(event, slots),
       days: event.days ?? [...new Set(slots.map((s) => s.date))].sort(),
       times: event.times ?? [...new Set(slots.map((s) => s.start))].sort(),
       open: isOpenFor(event, slots, now),
       slots: slots.map((s) => ({
         slotId: s.sk, classroomId: s.classroomId, date: s.date, start: s.start, end: s.end,
         capacity: s.capacity, booked: s.booked,
-        // Staff see who; a family sees only which of their own children holds it.
+        // Staff see who; a family sees counts only.
         ...(isStaff
           ? {
             bookings: Object.values(s.bookings ?? {}).sort((a, b) => a.bookedAt.localeCompare(b.bookedAt)).map((b) => {
@@ -91,7 +83,7 @@ route.get('/api/signups', async (c) => {
               return { childId: b.childId, childName: b.childName, parentName: b.parentName, email: p?.email, phone: p?.phone, byOffice: !!b.byOffice };
             }),
           }
-          : { mine: Object.keys(s.bookings ?? {}).filter((id) => myKids.has(id)) }),
+          : {}),
       })),
       // A family's children in this sign-up, and the time each holds.
       children: myChildren.filter((k) => event.classroomIds.includes(k.classroomId))
@@ -226,7 +218,7 @@ route.post('/api/admin/signups', async (c) => {
   const event: SignupEvent = {
     schoolId: admin.schoolId, sk: `EVENT#${eventId}`, eventId, kind: d.kind, title: d.title, status: 'DRAFT',
     classroomIds: d.classroomIds, slotMinutes: d.slotMinutes, capacity: d.capacity,
-    closesOn: d.closesOn || undefined, location: d.location || 'In person', createdAt: new Date().toISOString(),
+    location: d.location || 'In person', createdAt: new Date().toISOString(),
   };
   await putSignupEvent(event);
   return c.json({ eventId }, 201);
@@ -236,55 +228,32 @@ async function eventOr404(c: { get: (k: 'user') => User; req: { param: (k: strin
   return getSignupEvent(c.get('user').schoolId, c.req.param('eventId'));
 }
 
+/** Families per time (for every time), and closing or reopening. */
 route.patch('/api/admin/signups/:eventId', async (c) => {
   const event = await eventOr404(c);
   if (!event) return c.json({ error: 'Not found' }, 404);
-  const body = await c.req.json().catch(() => ({}));
-  const parsed = signupEventSchema.partial().safeParse(body);
-  if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Check the details' }, 400);
-  const d = parsed.data;
-  const status = ['DRAFT', 'OPEN', 'CLOSED'].includes(body.status) ? body.status as SignupEvent['status'] : event.status;
-  const nextRooms = d.classroomIds ?? event.classroomIds;
+  const body = (await c.req.json().catch(() => ({}))) as { capacity?: unknown; status?: unknown };
+  const status = body.status === 'OPEN' || body.status === 'CLOSED' ? body.status : event.status;
+  const capacity = Number.isInteger(body.capacity) && (body.capacity as number) >= 1 && (body.capacity as number) <= 30
+    ? body.capacity as number : event.capacity;
+  const slots = await listSignupSlots(event.schoolId, event.eventId);
 
-  // Adding a classroom, or reopening, can't double-book a classroom's day.
-  if (status !== 'CLOSED') {
-    const added = event.status === 'CLOSED' ? nextRooms : nextRooms.filter((id) => !event.classroomIds.includes(id));
-    const days = event.days ?? [...new Set((await listSignupSlots(event.schoolId, event.eventId)).map((x) => x.date))];
-    const clash = await dayClash(event, added, days);
+  // Reopening can't double-book a classroom's day.
+  if (event.status === 'CLOSED' && status === 'OPEN') {
+    const clash = await dayClash(event, event.classroomIds, event.days ?? [...new Set(slots.map((x) => x.date))]);
     if (clash) return c.json({ error: clash }, 409);
   }
 
-  // Taking a classroom off takes its times with it — unless families are
-  // booked there, who have to be moved or removed first.
-  const removed = event.classroomIds.filter((id) => !nextRooms.includes(id));
-  if (removed.length) {
-    const slots = (await listSignupSlots(event.schoolId, event.eventId)).filter((x) => removed.includes(x.classroomId));
-    const busyRooms = [...new Set(slots.filter((x) => x.booked > 0).map((x) => x.classroomId))];
-    if (busyRooms.length) {
-      const names = (await listClassrooms(event.schoolId)).filter((r) => busyRooms.includes(r.classroomId)).map((r) => r.name);
-      const families = slots.reduce((n, x) => n + x.booked, 0);
-      return c.json({
-        error: `${names.join(' and ')} ${families === 1 ? 'has a family' : `${names.length === 1 ? 'has' : 'have'} ${families} families`} booked. Remove ${families === 1 ? 'it' : 'them'} on the sheet first.`,
-      }, 409);
-    }
-    for (const x of slots) await deleteEmptySignupSlot(event.schoolId, x.sk);
-  }
-
   // Families per time applies to every time, never below what is booked.
-  if (d.capacity && d.capacity !== event.capacity) {
-    const slots = (await listSignupSlots(event.schoolId, event.eventId)).filter((x) => nextRooms.includes(x.classroomId));
-    const over = slots.find((x) => x.booked > d.capacity!);
+  if (capacity !== event.capacity) {
+    const over = slots.find((x) => x.booked > capacity);
     if (over) {
       return c.json({ error: `${formatShort(over.date)} ${clock(over.start)} already has ${over.booked} families. Move some first, or keep the number at ${over.booked} or more.` }, 409);
     }
-    for (const x of slots) await setSlotCapacity(event.schoolId, x.sk, d.capacity);
+    for (const x of slots) await setSlotCapacity(event.schoolId, x.sk, capacity);
   }
 
-  await putSignupEvent({
-    ...event, ...(d.title ? { title: d.title } : {}), ...(d.classroomIds ? { classroomIds: d.classroomIds } : {}),
-    ...(d.capacity ? { capacity: d.capacity } : {}), ...(d.location !== undefined ? { location: d.location || 'In person' } : {}),
-    ...(d.closesOn !== undefined ? { closesOn: d.closesOn || undefined } : {}), status,
-  });
+  await putSignupEvent({ ...event, capacity, status });
   return c.json({ ok: true });
 });
 
@@ -318,7 +287,7 @@ route.put('/api/admin/signups/:eventId/schedule', async (c) => {
       for (const start of times) {
         await addSignupSlot({
           schoolId: event.schoolId, sk: signupSlotSk(event.eventId, room, date, start), eventId: event.eventId,
-          classroomId: room, date, start, end: hhmmOf(minutes(start) + event.slotMinutes),
+          classroomId: room, date, start, end: addMinutes(start, event.slotMinutes),
           capacity: event.capacity, booked: 0, bookings: {},
         });
       }
@@ -349,16 +318,13 @@ route.post('/api/admin/signups/:eventId/hours', async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Check the times' }, 400);
   const d = parsed.data;
   if (!event.classroomIds.includes(d.classroomId)) return c.json({ error: 'That classroom is not in this sign-up' }, 400);
-  const from = minutes(d.start);
-  const to = minutes(d.end);
-  if (to - from < event.slotMinutes) return c.json({ error: `Leave at least ${event.slotMinutes} minutes` }, 400);
+  if (minutesOf(d.end) - minutesOf(d.start) < event.slotMinutes) return c.json({ error: `Leave at least ${event.slotMinutes} minutes` }, 400);
 
   let added = 0;
-  for (let t = from; t + event.slotMinutes <= to; t += event.slotMinutes) {
-    const start = hhmmOf(t);
+  for (let start = d.start; minutesOf(start) + event.slotMinutes <= minutesOf(d.end); start = addMinutes(start, event.slotMinutes)) {
     const ok = await addSignupSlot({
       schoolId: event.schoolId, sk: signupSlotSk(event.eventId, d.classroomId, d.date, start),
-      eventId: event.eventId, classroomId: d.classroomId, date: d.date, start, end: hhmmOf(t + event.slotMinutes),
+      eventId: event.eventId, classroomId: d.classroomId, date: d.date, start, end: addMinutes(start, event.slotMinutes),
       capacity: event.capacity, booked: 0, bookings: {},
     });
     if (ok) added += 1;

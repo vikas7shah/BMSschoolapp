@@ -155,14 +155,13 @@ export const curriculumGroupsSchema = z.object({
 const hhmm = z.string().regex(/^\d{2}:\d{2}$/, 'Times look like 08:30');
 const civil = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Dates look like 2026-12-01');
 
-/** A new sign-up, or changes to one. */
+/** A new sign-up. */
 export const signupEventSchema = z.object({
   kind: z.enum(['CONFERENCE', 'OBSERVATION']),
   title: z.string().trim().min(1, 'Give it a name').max(80),
   classroomIds: z.array(z.string().min(1)).min(1, 'Choose at least one classroom'),
   slotMinutes: z.number().int().min(5).max(120),
   capacity: z.number().int().min(1).max(30),
-  closesOn: civil.optional().or(z.literal('')),
   location: z.string().trim().max(80).default('In person'),
 });
 

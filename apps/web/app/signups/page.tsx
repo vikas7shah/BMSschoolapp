@@ -1,10 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { formatLong, formatShort } from '@bms/shared';
+import { clockRange, formatLong, formatShort } from '@bms/shared';
 import { ApiError, api, type Signup, type SignupSlotView } from '@/lib/api';
 import { useSession } from '@/lib/session';
-import { clockRange } from '@/lib/time';
 import { shownSignup } from '@/lib/features';
 import { Shell } from '@/components/shell';
 import { Banner, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ui';

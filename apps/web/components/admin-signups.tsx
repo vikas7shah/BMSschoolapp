@@ -2,9 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { formatShort } from '@bms/shared';
+import { addMinutes, clockRange, formatShort } from '@bms/shared';
 import { ApiError, api, type Signup } from '@/lib/api';
-import { clockRange } from '@/lib/time';
 import { shownSignup } from '@/lib/features';
 import { Button, Card, Skeleton, inputClass } from './ui';
 
@@ -18,12 +17,6 @@ const STATUS: Record<Signup['status'], { label: string; cls: string }> = {
 
 const SLOT_MINUTES = 20;
 const FAMILIES_PER_TIME = 5;
-
-/** "08:30" + 20 min → "08:50" */
-const plus = (hhmm: string, mins: number) => {
-  const t = Number(hhmm.slice(0, 2)) * 60 + Number(hhmm.slice(3, 5)) + mins;
-  return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}`;
-};
 
 const booked = (s: Signup) => s.slots.reduce((n, x) => n + x.booked, 0);
 const seats = (s: Signup) => s.slots.reduce((n, x) => n + x.capacity, 0);
@@ -238,7 +231,7 @@ function Editor({ signup, rooms, reload, onCopy, onBack, onChanged, onError }: {
         <div className="mt-2 flex flex-wrap items-center gap-2">
           {signup.times.map((t) => (
             <span key={t} className={chip}>
-              {clockRange(t, plus(t, signup.slotMinutes))}
+              {clockRange(t, addMinutes(t, signup.slotMinutes))}
               <button type="button" aria-label={`Remove ${t}`} disabled={busy} className={remove}
                 onClick={() => void schedule(signup.days, signup.times.filter((x) => x !== t))}>✕</button>
             </span>
@@ -278,7 +271,7 @@ function Editor({ signup, rooms, reload, onCopy, onBack, onChanged, onError }: {
                 <tbody>
                   {signup.times.map((t) => (
                     <tr key={t} className="border-t border-line">
-                      <th className="whitespace-nowrap p-2 text-left font-medium text-ink">{clockRange(t, plus(t, signup.slotMinutes))}</th>
+                      <th className="whitespace-nowrap p-2 text-left font-medium text-ink">{clockRange(t, addMinutes(t, signup.slotMinutes))}</th>
                       {signup.days.map((d) => {
                         const s = cell(d, t);
                         return (

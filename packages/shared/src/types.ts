@@ -89,7 +89,7 @@ export interface SignupEvent {
   slotMinutes: number;
   /** Families per time, for new times; each time can be raised on its own. */
   capacity: number;
-  /** Last day families can book or switch; the day before the first time unless set. */
+  /** Last day families can book or switch. Unset: the day before the first time. */
   closesOn?: string;
   location: string;
   /**

@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { formatShort } from '@bms/shared';
+import { clockRange, formatShort } from '@bms/shared';
 import type { Me, Signup } from '@/lib/api';
-import { clockRange } from '@/lib/time';
 import { Button, Tile } from './ui';
 
 /** "Classroom 1", "Classroom 1 and 3", or "All classrooms" when it's every one. */

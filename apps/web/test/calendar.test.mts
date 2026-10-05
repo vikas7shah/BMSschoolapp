@@ -57,3 +57,13 @@ test('February in a leap year is complete', () => {
   const days = flat('2028-02').filter((d) => d.startsWith('2028-02'));
   assert.ok(days.includes('2028-02-29'), 'leap day present');
 });
+
+test('no row is entirely another month', () => {
+  // 1 Nov 2026 is a Sunday: the Mon–Fri before it is all October.
+  for (const month of ['2026-11', '2026-08', '2027-05']) {
+    for (const week of monthWeeks(month)) {
+      assert.ok(week.some((d) => d.startsWith(month)), `${month}: ${week[0]} row has a day of the month`);
+    }
+  }
+  assert.equal(monthWeeks('2026-11')[0]![0], '2026-11-02');
+});

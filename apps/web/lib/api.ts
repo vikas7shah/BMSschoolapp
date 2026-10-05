@@ -108,7 +108,7 @@ export interface Me {
   curriculumGroups?: string[];
 }
 
-/** One time in a sign-up. Staff get `bookings`; a family gets `mine`. */
+/** One time in a sign-up. Staff get `bookings`; a family sees counts only. */
 export interface SignupSlotView {
   slotId: string;
   classroomId: string;
@@ -118,7 +118,6 @@ export interface SignupSlotView {
   capacity: number;
   booked: number;
   bookings?: { childId: string; childName: string; parentName: string; email?: string; phone?: string; byOffice: boolean }[];
-  mine?: string[];
 }
 
 /** A conference or observation sign-up, as the viewer may see it. */
@@ -132,7 +131,6 @@ export interface Signup {
   capacity: number;
   location: string;
   closesOn: string | null;
-  setClosesOn: string | null;
   /** Families can still book or switch. */
   open: boolean;
   /** Every day gets every time ("08:30"). */
