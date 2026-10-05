@@ -51,8 +51,14 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
   }, [onError]);
   useEffect(() => { void load(); }, [load]);
 
-  /** The classroom's current (not closed) observation, if any. */
-  const forRoom = (id: string) => list?.find((s) => s.status !== 'CLOSED' && s.classroomIds.includes(id));
+  const [asking, setAsking] = useState<string | null>(null);
+  const today = new Date().toISOString().slice(0, 10);
+  /** A classroom's sign-ups, soonest first; ones with no days yet at the end. */
+  const forRoom = (id: string) => (list ?? [])
+    .filter((s) => s.classroomIds.includes(id))
+    .sort((x, y) => (x.days[0] ?? '9999').localeCompare(y.days[0] ?? '9999'));
+  /** Still to come: not closed, and its last day hasn't passed. */
+  const upcoming = (s: Signup) => s.status !== 'CLOSED' && (!s.days.length || s.days.at(-1)! >= today);
 
   async function create(room: Room, from?: Signup): Promise<string | null> {
     try {
@@ -75,7 +81,6 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
       <Editor
         signup={current}
         rooms={classrooms}
-        freeRooms={classrooms.filter((c) => !forRoom(c.classroomId))}
         reload={load}
         onCopy={async (room) => {
           const id = await create(room, current);
@@ -88,81 +93,81 @@ export function AdminSignups({ classrooms, onChanged, onError }: {
     );
   }
 
-  const closed = (list ?? []).filter((s) => s.status === 'CLOSED');
+  async function add(room: Room) {
+    const id = await create(room);
+    if (id) { setAsking(null); setOpenId(id); }
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div>
         <h2 className="px-1 font-semibold text-ink">Parent observations</h2>
-        <p className="mt-0.5 px-1 text-sm text-muted">One sign-up per classroom. Families see it once you publish.</p>
+        <p className="mt-0.5 px-1 text-sm text-muted">
+          Each classroom can have one for each time of year. Families see it once you publish.
+        </p>
       </div>
-      {!list ? <Skeleton className="h-40" /> : (
-        <ul className="space-y-2">
-          {classrooms.map((room) => {
-            const s = forRoom(room.classroomId);
-            return (
-              <li key={room.classroomId}>
-                {s ? (
-                  <button type="button" onClick={() => setOpenId(s.eventId)} className="w-full text-left">
-                    <Card className="!p-4 transition-colors hover:border-sage">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="font-semibold text-ink">{room.name}</p>
-                          <p className="text-sm text-muted">
-                            {dayRange(s.days)} · {s.status === 'DRAFT' ? 'not published yet' : `${booked(s)} of ${seats(s)} booked`}
-                          </p>
+      {!list ? <Skeleton className="h-40" /> : classrooms.map((room) => {
+        const signups = forRoom(room.classroomId);
+        const existing = signups.find(upcoming);
+        return (
+          <section key={room.classroomId}>
+            <h3 className="mb-2 px-1 text-sm font-semibold text-ink">{room.name}</h3>
+            <ul className="space-y-2">
+              {signups.map((s) => {
+                const past = s.days.length > 0 && s.days.at(-1)! < today;
+                return (
+                  <li key={s.eventId}>
+                    <button type="button" onClick={() => setOpenId(s.eventId)} className="w-full text-left">
+                      <Card className={`!p-4 transition-colors hover:border-sage ${past || s.status === 'CLOSED' ? 'opacity-70' : ''}`}>
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-medium text-ink">{dayRange(s.days)}</p>
+                            <p className="text-sm text-muted">
+                              {s.status === 'DRAFT' ? 'Not published yet' : `${booked(s)} of ${seats(s)} booked`}
+                            </p>
+                          </div>
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[s.status].cls}`}>
+                            {past && s.status === 'OPEN' ? 'Done' : STATUS[s.status].label}
+                          </span>
                         </div>
-                        <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${STATUS[s.status].cls}`}>
-                          {STATUS[s.status].label}
-                        </span>
-                      </div>
-                    </Card>
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={async () => { const id = await create(room); if (id) setOpenId(id); }}
-                    className="flex w-full items-center justify-between rounded-2xl border border-dashed border-line px-4 py-4 text-left transition-colors hover:border-sage"
-                  >
-                    <span>
-                      <span className="block font-semibold text-ink">{room.name}</span>
-                      <span className="text-sm text-muted">No sign-up yet</span>
-                    </span>
-                    <span className="text-sm font-semibold text-sage">+ Create</span>
-                  </button>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-      )}
-      {closed.length > 0 && (
-        <div>
-          <p className="mb-1.5 px-1 text-xs font-semibold uppercase tracking-wide text-muted">Closed</p>
-          <ul className="space-y-1.5">
-            {closed.map((s) => (
-              <li key={s.eventId}>
-                <button
-                  type="button"
-                  onClick={() => setOpenId(s.eventId)}
-                  className="flex w-full justify-between rounded-xl px-3 py-2 text-left text-sm text-muted hover:bg-black/5"
-                >
-                  <span>{s.classroomIds.map((id) => classrooms.find((c) => c.classroomId === id)?.name).join(', ')} · {dayRange(s.days)}</span>
-                  <span>{booked(s)} booked</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+                      </Card>
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {asking === room.classroomId && existing ? (
+              <div className="mt-2 rounded-2xl bg-sun-soft p-4 text-sm text-[#8a6414]">
+                <p>
+                  {room.name} already has a sign-up {existing.days.length ? `for ${dayRange(existing.days)}` : 'in progress'}.
+                  Open it to change its days or times — or add another for a different time of year.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => { setAsking(null); setOpenId(existing.eventId); }}>Open it</Button>
+                  <Button size="sm" variant="secondary" onClick={() => void add(room)}>Add another</Button>
+                  <Button size="sm" variant="ghost" onClick={() => setAsking(null)}>Cancel</Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => (existing ? setAsking(room.classroomId) : void add(room))}
+                className="mt-2 px-1 text-sm font-semibold text-sage underline underline-offset-2"
+              >
+                + Add sign-up
+              </button>
+            )}
+          </section>
+        );
+      })}
     </div>
   );
 }
 
-function Editor({ signup, rooms, freeRooms, reload, onCopy, onBack, onChanged, onError }: {
+function Editor({ signup, rooms, reload, onCopy, onBack, onChanged, onError }: {
   signup: Signup;
   rooms: Room[];
-  /** Classrooms with no observation yet: where this one can be copied. */
-  freeRooms: Room[];
   reload: () => Promise<void>;
   onCopy: (room: Room) => Promise<void>;
   onBack: () => void;
@@ -175,6 +180,8 @@ function Editor({ signup, rooms, freeRooms, reload, onCopy, onBack, onChanged, o
   const base = `/api/admin/signups/${signup.eventId}`;
   const roomName = signup.classroomIds.map((id) => rooms.find((r) => r.classroomId === id)?.name ?? 'Classroom').join(', ');
   const cell = (date: string, start: string) => signup.slots.find((s) => s.date === date && s.start === start);
+  const otherRooms = rooms.filter((r) => !signup.classroomIds.includes(r.classroomId));
+  const families = signup.slots.reduce((n, x) => n + x.booked, 0);
 
   async function run(fn: () => Promise<unknown>, done?: string): Promise<boolean> {
     setBusy(true);
@@ -334,23 +341,22 @@ function Editor({ signup, rooms, freeRooms, reload, onCopy, onBack, onChanged, o
           </>
         )}
 
-        {(signup.slots.length > 0 && freeRooms.length > 0) || signup.status === 'DRAFT' ? (
-          <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-3 text-sm">
-            {signup.slots.length > 0 && freeRooms.map((r) => (
-              <button key={r.classroomId} type="button" disabled={busy} onClick={() => void onCopy(r)}
-                className="font-medium text-sage underline underline-offset-2">
-                Copy to {r.name}
-              </button>
-            ))}
-            {signup.status === 'DRAFT' && (
-              <button type="button" disabled={busy}
-                onClick={() => window.confirm('Delete this draft?') && void run(async () => { await api.del(base); onBack(); }, 'Draft deleted.')}
-                className="ml-auto font-medium text-clay underline underline-offset-2">
-                Delete draft
-              </button>
-            )}
-          </div>
-        ) : null}
+        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-line pt-3 text-sm">
+          {signup.slots.length > 0 && otherRooms.map((r) => (
+            <button key={r.classroomId} type="button" disabled={busy} onClick={() => void onCopy(r)}
+              className="font-medium text-sage underline underline-offset-2">
+              Copy to {r.name}
+            </button>
+          ))}
+          <button type="button" disabled={busy}
+            onClick={() => window.confirm(families
+              ? `Delete this sign-up? ${families} ${families === 1 ? 'family is' : 'families are'} booked and will lose ${families === 1 ? 'its' : 'their'} time. They are not emailed.`
+              : 'Delete this sign-up?')
+              && void run(async () => { await api.del(base); onBack(); }, 'Sign-up deleted.')}
+            className="ml-auto font-medium text-clay underline underline-offset-2">
+            Delete sign-up
+          </button>
+        </div>
       </Card>
     </div>
   );

@@ -196,28 +196,32 @@ route.post('/api/signups/:eventId/remind', async (c) => {
 /* ------------------------------------------------------------- the office */
 
 /**
- * A classroom is in at most one sign-up of each kind at a time (closed ones
- * aside), so a family never sees two observations for the same child.
- * Returns the names of the classrooms already taken, if any.
+ * A classroom can have several sign-ups of a kind — one in December, another
+ * in April — but never two on the same day, so a family can't be offered two
+ * observations at once. Returns a sentence naming the clash, or null.
  */
-async function takenRooms(schoolId: string, kind: SignupEvent['kind'], classroomIds: string[], exceptEventId?: string) {
-  const [events, rooms] = await Promise.all([listSignupEvents(schoolId), listClassrooms(schoolId)]);
-  const taken = new Set(events
-    .filter((e) => e.kind === kind && e.status !== 'CLOSED' && e.eventId !== exceptEventId)
-    .flatMap((e) => e.classroomIds));
-  return rooms.filter((r) => classroomIds.includes(r.classroomId) && taken.has(r.classroomId)).map((r) => r.name);
+async function dayClash(event: SignupEvent, classroomIds: string[], days: string[]): Promise<string | null> {
+  if (!days.length) return null;
+  const [events, rooms] = await Promise.all([listSignupEvents(event.schoolId), listClassrooms(event.schoolId)]);
+  for (const other of events) {
+    if (other.eventId === event.eventId || other.kind !== event.kind || other.status === 'CLOSED') continue;
+    const shared = classroomIds.filter((id) => other.classroomIds.includes(id));
+    if (!shared.length) continue;
+    const otherDays = other.days ?? [...new Set((await listSignupSlots(event.schoolId, other.eventId)).map((x) => x.date))];
+    const day = days.find((d) => otherDays.includes(d));
+    if (day) {
+      const name = rooms.find((r) => r.classroomId === shared[0])?.name ?? 'That classroom';
+      return `${name} already has a sign-up on ${formatShort(day)}. Open that one to change it, or pick another day.`;
+    }
+  }
+  return null;
 }
-
-const takenMessage = (names: string[], kind: SignupEvent['kind']) =>
-  `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} already in another ${kind === 'CONFERENCE' ? 'conference' : 'observation'} sign-up. Take ${names.length === 1 ? 'it' : 'them'} off that one first.`;
 
 route.post('/api/admin/signups', async (c) => {
   const admin = c.get('user');
   const parsed = signupEventSchema.safeParse(await c.req.json().catch(() => ({})));
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Check the details' }, 400);
   const d = parsed.data;
-  const clash = await takenRooms(admin.schoolId, d.kind, d.classroomIds);
-  if (clash.length) return c.json({ error: takenMessage(clash, d.kind) }, 409);
   const eventId = ulid();
   const event: SignupEvent = {
     schoolId: admin.schoolId, sk: `EVENT#${eventId}`, eventId, kind: d.kind, title: d.title, status: 'DRAFT',
@@ -242,11 +246,12 @@ route.patch('/api/admin/signups/:eventId', async (c) => {
   const status = ['DRAFT', 'OPEN', 'CLOSED'].includes(body.status) ? body.status as SignupEvent['status'] : event.status;
   const nextRooms = d.classroomIds ?? event.classroomIds;
 
-  // Adding a classroom, or reopening, can't put it in two sign-ups at once.
+  // Adding a classroom, or reopening, can't double-book a classroom's day.
   if (status !== 'CLOSED') {
     const added = event.status === 'CLOSED' ? nextRooms : nextRooms.filter((id) => !event.classroomIds.includes(id));
-    const clash = await takenRooms(event.schoolId, event.kind, added, event.eventId);
-    if (clash.length) return c.json({ error: takenMessage(clash, event.kind) }, 409);
+    const days = event.days ?? [...new Set((await listSignupSlots(event.schoolId, event.eventId)).map((x) => x.date))];
+    const clash = await dayClash(event, added, days);
+    if (clash) return c.json({ error: clash }, 409);
   }
 
   // Taking a classroom off takes its times with it — unless families are
@@ -295,6 +300,10 @@ route.put('/api/admin/signups/:eventId/schedule', async (c) => {
   if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message ?? 'Check the days and times' }, 400);
   const days = [...new Set(parsed.data.days)].sort();
   const times = [...new Set(parsed.data.times)].sort();
+  if (event.status !== 'CLOSED') {
+    const clash = await dayClash(event, event.classroomIds, days.filter((d) => !(event.days ?? []).includes(d)));
+    if (clash) return c.json({ error: clash }, 409);
+  }
 
   const slots = await listSignupSlots(event.schoolId, event.eventId);
   const wanted = new Set(days.flatMap((d) => times.map((t) => `${d}#${t}`)));

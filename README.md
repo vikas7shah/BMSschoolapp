@@ -494,8 +494,12 @@ never wipes them. The office can add to any group from Admin → News.
 
 ## Sign-ups (parent observations)
 
-**Admin → Sign-ups** lists the classrooms. Each has at most one current
-parent observation; one without shows **+ Create**. A sign-up's screen has its
+**Admin → Sign-ups** lists each classroom's sign-ups — it happens twice a
+year, so a classroom can have several (December, April) — with
+**+ Add sign-up** under each. Adding one while the classroom already has an
+upcoming sign-up first offers to open that one instead. The office can delete
+a sign-up at any stage; if families are booked it says how many first. Two
+sign-ups in one classroom can't share a day. A sign-up's screen has its
 **days** and **times** (20 minutes each) — every day gets every time, so the
 slots are days × times — the **families per time**, a booking grid, and
 **Publish and email parents**. **Copy to Classroom N** makes the same days and
