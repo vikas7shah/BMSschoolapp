@@ -59,9 +59,7 @@ export async function removeChild(schoolId: string, childId: string): Promise<Re
   for (const userId of await guardianIdsForChild(childId)) {
     await unlinkGuardian(userId, childId);
     const remaining = await childIdsForGuardian(userId);
-    // Only a parent goes with their last child — never an admin or teacher
-    // who happened to be linked to one.
-    if (!remaining.length && (await getUser(userId))?.role === 'PARENT') {
+    if (!remaining.length) {
       const r = await removeParent(schoolId, userId);
       if (r !== 'NOT_FOUND') {
         out.parentsRemoved += 1;
