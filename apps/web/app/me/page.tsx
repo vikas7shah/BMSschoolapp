@@ -91,8 +91,8 @@ export default function MePage() {
   if (!me || !prefs) return <Shell><div /></Shell>;
   const isTeacher = me.role === 'TEACHER';
   const isAdmin = me.role === 'ADMIN';
-  // An admin is often not a parent; reminders only matter if they have children here.
-  const getsReminders = !isTeacher && (!isAdmin || me.children.length > 0);
+  // Admins and teachers have no children here: no reminders, no children, no messages.
+  const isParent = me.role === 'PARENT';
 
   return (
     <Shell>
@@ -101,7 +101,7 @@ export default function MePage() {
       {isAdmin && <AdminDetails me={me} onSaved={reload} />}
 
       {/* A teacher signs in with what the office set, and gets no reminders. */}
-      {getsReminders && (
+      {isParent && (
       <Card className="mb-4">
         <h2 className="font-semibold text-ink">Email &amp; reminders</h2>
         <p className="mt-1 text-sm text-muted">
@@ -134,7 +134,7 @@ export default function MePage() {
                 />
               </div>
               {/* The address sits with its switch; sign-in codes use it too, so it shows even when email is off. */}
-              {channel === 'email' && !isAdmin && (
+              {channel === 'email' && (
                 <div className="mt-3">
                   <Field label="Email address" hint="Your sign-in code is sent here.">
                     <input
@@ -183,7 +183,7 @@ export default function MePage() {
           </ul>
           <p className="mt-3 text-xs text-muted">You can see your class and add to its curriculum. The office makes any other changes.</p>
         </Card>
-      ) : getsReminders && (
+      ) : isParent && (
       <Card className="mt-4">
         <h2 className="font-semibold text-ink">Your children</h2>
         <ul className="mt-3 space-y-1.5">
@@ -199,6 +199,7 @@ export default function MePage() {
       </Card>
       )}
 
+      {!isAdmin && (
       <section className="mt-4">
         <h2 className="mb-3 px-1 font-semibold text-ink">Messages</h2>
         {notes.length === 0 ? (
@@ -217,6 +218,7 @@ export default function MePage() {
           </ul>
         )}
       </section>
+      )}
 
     </Shell>
   );
