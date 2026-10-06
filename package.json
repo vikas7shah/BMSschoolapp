@@ -18,7 +18,7 @@
     "dev:web": "npm run dev -w @bms/web",
     "build:web": "npm run build -w @bms/web",
     "deploy": "npm run build:shared && npm run build:web && npm run deploy -w @bms/infra && npm run test-families",
-    "deploy:dev": "npm run build:shared && npm run build:web && npm run deploy -w @bms/infra -- -c stage=dev -c domainName= -c certificateArn= -c retainData=false Bms-dev",
+    "deploy:dev": "npm run build:shared && npm run build:web && npm run deploy -w @bms/infra -- -c stage=dev -c devLogin=true -c domainName= -c certificateArn= -c retainData=false Bms-dev",
     "seed-dev": "BMS_STACK=Bms-dev node scripts/seed-dev.mjs",
     "destroy": "npm run destroy -w @bms/infra",
     "test": "npm run test -w @bms/shared && npm run test -w @bms/web",

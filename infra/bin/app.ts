@@ -29,8 +29,9 @@ new BmsStack(app, `Bms-${stage}`, {
   budgetUsd: Number(app.node.tryGetContext('budgetUsd') ?? 10),
   retainData: app.node.tryGetContext('retainData') !== 'false'
     && app.node.tryGetContext('retainData') !== false,
-  // Test-only sign-in with a fixed code. Set false before the school goes live.
-  devLogin: app.node.tryGetContext('devLogin') === true,
+  // Test-only sign-in with a fixed code: off on live (cdk.json), on for the
+  // dev copy, whose deploy passes -c devLogin=true.
+  devLogin: app.node.tryGetContext('devLogin') === true || app.node.tryGetContext('devLogin') === 'true',
   // The app's own address. The certificate is issued in ACM (us-east-1) for
   // this name; two CNAMEs at the registrar validate it and point it here.
   domainName: app.node.tryGetContext('domainName') || undefined,

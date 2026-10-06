@@ -672,24 +672,24 @@ npm test
 
 ## Common tasks
 
-**Admin sign-in with a fixed code (while building).** With `devLogin: true`
-in `infra/cdk.json`, the login page shows a small *Admin sign in* link that
-takes a fixed code and signs in as a stand-alone "School Admin" account — no
-mailbox, no phone, no link to a family. The code lives in Secrets Manager,
-not the repository:
+**Admins.** On live, the office signs in like anyone else, with their own
+mobile number or email: Sahar Dahdouh and Dan Bertini. An admin can change
+their own name, number and email on **You → Your details** (everyone else's are
+the office's to change, on Admin → Families). Making someone an admin:
+Admin → Families → their contact → role, or add them there first.
+
+**Admin sign-in with a fixed code — dev only.** `devLogin` is `false` in
+`infra/cdk.json`, so live has no shared admin code; `npm run deploy:dev` passes
+`-c devLogin=true`, so the dev copy shows a small *Admin sign in* link that
+takes a fixed code and signs in as a stand-alone "Admin" account. The code
+lives in Secrets Manager:
 
 ```bash
-npm run dev-login
+BMS_STACK=Bms-dev npm run dev-login
 ```
 
-```bash
-npm run dev-login -- --set 123456
-```
-
-Every use (and every wrong guess) emails the alert address with the IP. To
-remove it, set `devLogin` to `false` and deploy: the route, the secret and the
-link all go. Then remove the *School Admin* row under Admin → Families.
-
+Every use (and every wrong guess) emails the alert address with the IP. With
+the code off, `test-families` steps aside on live deploys.
 
 **Removing a parent** — Admin → Families → Contacts → *Remove from the school*.
 Their sign-in goes, the links to their children go, a child with no other
