@@ -7,6 +7,7 @@ import {
 } from '@bms/backend';
 import type { Vars } from '../app.js';
 import { teacherGroups } from './curriculum.js';
+import { changeContact, type ContactChange } from '../contact.js';
 
 const route = new Hono<{ Variables: Vars }>();
 
@@ -66,6 +67,20 @@ route.patch('/api/me/prefs', async (c) => {
 
   const updated = await updateUser(user.userId, { prefs, email });
   return c.json({ prefs: updated?.prefs, email: updated?.email });
+});
+
+/**
+ * An admin's own name, mobile number and email — what they sign in with.
+ * Parents' and teachers' are the office's to change.
+ */
+route.patch('/api/me/contact', async (c) => {
+  const user = c.get('user');
+  if (user.role !== 'ADMIN') return c.json({ error: 'The office manages your details' }, 403);
+  const body = (await c.req.json().catch(() => ({}))) as ContactChange;
+  const r = await changeContact(user, {
+    firstName: body.firstName, lastName: body.lastName, phone: body.phone, email: body.email,
+  });
+  return 'error' in r ? c.json({ error: r.error }, r.status) : c.json({ ok: true });
 });
 
 /**

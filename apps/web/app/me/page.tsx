@@ -6,7 +6,8 @@ import { ApiError, api, type Notification } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { Shell } from '@/components/shell';
 import { InstallCard } from '@/components/install-card';
-import { Banner, Card, Field, PageHeader, inputClass } from '@/components/ui';
+import { Banner, Button, Card, Field, PageHeader, inputClass } from '@/components/ui';
+import { formatPhone } from '@/lib/phone';
 import { disablePush, enablePush, needsHomeScreenInstall, pushSupported } from '@/lib/push';
 
 const CHANNEL_COPY: Record<Channel, { label: string; hint: string }> = {
@@ -89,13 +90,18 @@ export default function MePage() {
 
   if (!me || !prefs) return <Shell><div /></Shell>;
   const isTeacher = me.role === 'TEACHER';
+  const isAdmin = me.role === 'ADMIN';
+  // Admins and teachers have no children here: no reminders, no children, no messages.
+  const isParent = me.role === 'PARENT';
 
   return (
     <Shell>
-      <PageHeader title="You" subtitle={[`${me.firstName} ${me.lastName}`, me.phone].filter(Boolean).join(' · ')} />
+      <PageHeader title="You" subtitle={[`${me.firstName} ${me.lastName}`, me.phone && formatPhone(me.phone)].filter(Boolean).join(' · ')} />
+
+      {isAdmin && <AdminDetails me={me} onSaved={reload} />}
 
       {/* A teacher signs in with what the office set, and gets no reminders. */}
-      {!isTeacher && (
+      {isParent && (
       <Card className="mb-4">
         <h2 className="font-semibold text-ink">Email &amp; reminders</h2>
         <p className="mt-1 text-sm text-muted">
@@ -177,7 +183,7 @@ export default function MePage() {
           </ul>
           <p className="mt-3 text-xs text-muted">You can see your class and add to its curriculum. The office makes any other changes.</p>
         </Card>
-      ) : (
+      ) : isParent && (
       <Card className="mt-4">
         <h2 className="font-semibold text-ink">Your children</h2>
         <ul className="mt-3 space-y-1.5">
@@ -193,6 +199,7 @@ export default function MePage() {
       </Card>
       )}
 
+      {!isAdmin && (
       <section className="mt-4">
         <h2 className="mb-3 px-1 font-semibold text-ink">Messages</h2>
         {notes.length === 0 ? (
@@ -211,6 +218,7 @@ export default function MePage() {
           </ul>
         )}
       </section>
+      )}
 
     </Shell>
   );
@@ -236,5 +244,62 @@ function Toggle({ label, checked, disabled, onChange }: {
                     ${checked ? 'translate-x-[22px]' : 'translate-x-0.5'}`}
       />
     </button>
+  );
+}
+
+/**
+ * An admin keeps their own details current: what they sign in with, and how
+ * the school reaches them. Parents' and teachers' are changed by the office.
+ */
+function AdminDetails({ me, onSaved }: {
+  me: NonNullable<ReturnType<typeof useSession>['me']>;
+  onSaved: () => Promise<void>;
+}) {
+  const [d, setD] = useState({
+    firstName: me.firstName, lastName: me.lastName, phone: me.phone ? formatPhone(me.phone) : '', email: me.email ?? '',
+  });
+  const [busy, setBusy] = useState(false);
+  const [status, setStatus] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const set = (patch: Partial<typeof d>) => { setD((v) => ({ ...v, ...patch })); setStatus(null); };
+
+  async function save(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api.patch('/api/me/contact', d);
+      await onSaved();
+      setStatus({ tone: 'success', text: 'Saved. Sign in with this mobile number or email from now on.' });
+    } catch (err) {
+      setStatus({ tone: 'error', text: err instanceof ApiError ? err.message : 'Could not save.' });
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Card className="mb-4">
+      <h2 className="font-semibold text-ink">Your details</h2>
+      <p className="mt-1 text-sm text-muted">You sign in with your mobile number or email. Your sign-in code is sent by email.</p>
+      <form onSubmit={save} className="mt-4 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="First name">
+            <input className={inputClass} value={d.firstName} onChange={(e) => set({ firstName: e.target.value })} required />
+          </Field>
+          <Field label="Last name">
+            <input className={inputClass} value={d.lastName} onChange={(e) => set({ lastName: e.target.value })} />
+          </Field>
+        </div>
+        <Field label="Mobile number">
+          <input className={inputClass} type="tel" inputMode="tel" autoComplete="tel" placeholder="(617) 555-0123"
+            value={d.phone} onChange={(e) => set({ phone: e.target.value })} />
+        </Field>
+        <Field label="Email">
+          <input className={inputClass} type="email" autoComplete="email" placeholder="you@example.com"
+            value={d.email} onChange={(e) => set({ email: e.target.value })} />
+        </Field>
+        {status && <Banner tone={status.tone}>{status.text}</Banner>}
+        <Button type="submit" loading={busy}>Save</Button>
+      </form>
+    </Card>
   );
 }
