@@ -1,6 +1,17 @@
 import { z } from 'zod';
 import { CHANNELS } from './types.js';
 
+/**
+ * A name as the office typed it, tidied: "vansh" → "Vansh", "SURBHI JAIN" →
+ * "Surbhi Jain", "mary-jane o'neil" → "Mary-Jane O'Neil". A name typed with
+ * its own mix of capitals ("McDonald", "de la Cruz") is kept as it is.
+ */
+export function tidyName(name: string): string {
+  const s = name.trim().replace(/\s+/g, ' ');
+  if (s !== s.toLowerCase() && s !== s.toUpperCase()) return s;
+  return s.toLowerCase().replace(/(^|[\s'’-])(\p{L})/gu, (_, sep: string, ch: string) => sep + ch.toUpperCase());
+}
+
 /** Accepts what a parent actually types and normalises to E.164 (US default). */
 export function normalizePhone(input: string, defaultCountry = '1'): string | null {
   const trimmed = input.trim();

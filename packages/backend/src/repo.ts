@@ -5,7 +5,7 @@ import { ulid } from 'ulid';
 import type {
   Child, ClassCurriculumItem, Classroom, Newsletter, NotificationRecord, PushSubscriptionRecord, School, SnackSlot, User,
 } from '@bms/shared';
-import { DEFAULT_PREFS } from '@bms/shared';
+import { DEFAULT_PREFS, tidyName } from '@bms/shared';
 import { ddb, nowIso, ttlDays } from './ddb.js';
 import { env } from './env.js';
 
@@ -184,6 +184,8 @@ export async function createUser(input: {
     // can still exist and sign in by email.
     cognitoUsername: userId,
     ...input,
+    firstName: tidyName(input.firstName),
+    lastName: tidyName(input.lastName),
     email: input.email ? normalizeEmail(input.email) : undefined,
   };
   // Guard against two admins inviting the same phone concurrently.
@@ -206,9 +208,12 @@ export async function updateUser(
    */
   remove: ('email' | 'phone')[] = [],
 ): Promise<User | null> {
-  const normalized = patch.email
-    ? { ...patch, email: normalizeEmail(patch.email) }
-    : patch;
+  const normalized = {
+    ...patch,
+    ...(patch.email ? { email: normalizeEmail(patch.email) } : {}),
+    ...(patch.firstName !== undefined ? { firstName: tidyName(patch.firstName) } : {}),
+    ...(patch.lastName !== undefined ? { lastName: tidyName(patch.lastName) } : {}),
+  };
   const entries = Object.entries(normalized)
     .filter(([k, v]) => v !== undefined && !remove.includes(k as 'email' | 'phone'));
   if (!entries.length && !remove.length) return getUser(userId);
@@ -245,7 +250,9 @@ export async function deleteUser(userId: string): Promise<void> {
 /* ------------------------------------------------- children & guardianships */
 
 export async function createChild(input: Omit<Child, 'childId' | 'createdAt'>): Promise<Child> {
-  const child: Child = { ...input, childId: ulid(), createdAt: nowIso() };
+  const child: Child = {
+    ...input, firstName: tidyName(input.firstName), lastName: tidyName(input.lastName), childId: ulid(), createdAt: nowIso(),
+  };
   await ddb.send(new PutCommand({ TableName: T.children, Item: child }));
   return child;
 }
