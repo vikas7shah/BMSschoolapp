@@ -371,15 +371,15 @@ function RemindersCard({ onChanged, onError }: {
       <div className="mt-1 divide-y divide-line">
         <Row
           k="remindersPaused"
-          title="All reminders"
-          on="On — families hear 2 days before their snack day, the day before if they ask, and on the 1st and 8th if they have no day that month."
-          off="Paused — nothing goes out, not even booking confirmations, and nothing is caught up when you resume. Sign-in codes and Remind them still work."
+          title="Snack reminders"
+          on="On — families hear 2 days before their snack day, the day before if they ask, and get a confirmation when they book."
+          off="Paused — no snack messages go out, not even booking confirmations, and nothing is caught up when you resume. Sign-in codes and Remind them still work."
         />
         <Row
           k="openSlotNudgesPaused"
-          title="Sign-up reminders"
-          on="On — on the 1st, and once more on the 8th, families with no day that month are asked to pick one."
-          off="Paused — no 1st or 8th reminders. Families still hear about the day they hold. Remind them still works."
+          title="Snack sign-up reminders (1st & 8th)"
+          on="On — on the 1st, and once more on the 8th, families with no snack day that month are asked to pick one. Needs Snack reminders on."
+          off="Paused — no 1st or 8th snack reminders. Families still hear about the day they hold. Remind them still works."
         />
       </div>
     </Card>
