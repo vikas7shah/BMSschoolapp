@@ -72,18 +72,15 @@ export default function HomePage() {
 
   useEffect(() => { void load().catch(() => setLoading(false)); }, [load]);
 
-  // Home is this month and next. Days further out exist (a family can book
-  // as far as June) but are noise here; they surface as their month arrives.
+  // Everything on Home is one month, named once at the top. Snack days are
+  // this month's only — days booked further ahead are on the Snacks calendar
+  // and show here as their month arrives. The calendar card is that month's
+  // events, past ones included (dimmed); only when a month has none at all
+  // does it show the next month's, and says so.
   const today = mine?.today ?? new Date().toISOString().slice(0, 10);
-  const nextMonth = monthOf(addMonths(today, 1));
-  const window = new Set([monthOf(today), nextMonth]);
-  const soon = mine?.slots.filter((s) => window.has(monthOf(s.date))) ?? [];
-  const later = (mine?.slots.length ?? 0) - soon.length;
-
-  // Everything on Home is one month, named once at the top. The calendar card
-  // is that month's events, past ones included (dimmed); only when a month
-  // has none at all does it show the next month's, and says so.
   const thisMonth = monthOf(today);
+  const nextMonth = monthOf(addMonths(today, 1));
+  const soon = mine?.slots.filter((s) => monthOf(s.date) === thisMonth) ?? [];
   const eventsIn = (month: string) => SCHOOL_EVENTS.filter((e) => monthOf(e.date) === month);
   const eventMonth = eventsIn(thisMonth).length ? thisMonth : nextMonth;
   const events = eventsIn(eventMonth);
@@ -173,14 +170,10 @@ export default function HomePage() {
           </Tile>
         ) : (
           <Tile label="Snack days">
-            <p className="mt-1 text-lg font-bold text-ink">{later > 0 ? 'Nothing this month or next' : 'No day booked yet'}</p>
-            <p className="mt-1 text-sm text-muted">
-              {later > 0
-                ? `Your ${later === 1 ? 'day is' : 'days are'} later in the year.`
-                : 'Families take turns bringing a dry snack and fruit.'}
-            </p>
+            <p className="mt-1 text-lg font-bold text-ink">No snack day in {monthLabel(thisMonth).replace(/ \d{4}$/, '')}</p>
+            <p className="mt-1 text-sm text-muted">Families take turns bringing a dry snack and fruit.</p>
             <Link href="/snacks/" className="mt-auto self-start">
-              <Button size="sm">{later > 0 ? 'See the calendar' : 'Find a day'}</Button>
+              <Button size="sm">Find a day</Button>
             </Link>
           </Tile>
         ))}
@@ -225,13 +218,6 @@ export default function HomePage() {
           </Tile>
         )}
       </div>
-
-      {isParent && later > 0 && soon.length > 0 && (
-        <p className="mt-3 px-1 text-xs text-muted">
-          {later} more snack {later === 1 ? 'day' : 'days'} later in the year — {later === 1 ? 'it' : 'they'}&apos;ll show
-          here as the month comes round.
-        </p>
-      )}
 
       <InstallPrompt />
     </Shell>
