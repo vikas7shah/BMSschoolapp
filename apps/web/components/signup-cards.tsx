@@ -1,8 +1,9 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import { clockRange, formatShort } from '@bms/shared';
-import type { Me, Signup } from '@/lib/api';
+import { ApiError, api, type Me, type Signup } from '@/lib/api';
 import { Button, Tile } from './ui';
 
 /** "Classroom 1", "Classroom 1 and 3", or "All classrooms" when it's every one. */
@@ -36,13 +37,19 @@ export function SignupTiles({ signups, me }: { signups: Signup[]; me: Me }) {
         tiles.push(
           <Tile key={`${s.eventId}-${room ?? 'all'}`} label={`${label} · ${room ? me.classroomNames[room] : roomsLabel(s.classroomIds, me.classroomNames)}`}>
             <p className="mt-1 text-lg font-bold text-ink">{s.title}</p>
-            <p className="mt-0.5 text-sm text-muted">{booked} of {seats} booked{s.open ? '' : ' · sign-ups closed'}</p>
+            <p className="mt-0.5 text-sm text-muted">
+              {booked} of {seats} booked{s.open ? '' : ' · sign-ups closed'}
+              {!room && s.open && s.notBooked?.length ? ` · ${s.notBooked.length} not booked` : ''}
+            </p>
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-line">
               <div className="h-full rounded-full bg-sage" style={{ width: `${seats ? (booked / seats) * 100 : 0}%` }} />
             </div>
-            <Link href={`/signups/?event=${s.eventId}${room ? `&room=${room}` : ''}`} className="mt-auto self-start">
-              <Button size="sm" variant="secondary">Open the sheet</Button>
-            </Link>
+            <div className="mt-auto flex flex-wrap gap-2">
+              <Link href={`/signups/?event=${s.eventId}${room ? `&room=${room}` : ''}`}>
+                <Button size="sm" variant="secondary">Open the sheet</Button>
+              </Link>
+              {!room && s.open && !!s.notBooked?.length && <RemindButton signup={s} />}
+            </div>
           </Tile>,
         );
       }
@@ -77,4 +84,38 @@ export function SignupTiles({ signups, me }: { signups: Signup[]; me: Me }) {
     }
   }
   return <>{tiles}</>;
+}
+
+/**
+ * The office reminds the families in a sign-up who haven't booked — the same
+ * reminder as "Remind them" on the sheet, one classroom at a time.
+ */
+function RemindButton({ signup }: { signup: Signup }) {
+  const waiting = signup.notBooked ?? [];
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState<string | null>(null);
+
+  async function remind() {
+    const n = waiting.length;
+    if (!window.confirm(`Remind ${n} ${n === 1 ? 'family' : 'families'} who haven't booked now?`)) return;
+    setBusy(true);
+    try {
+      let sent = 0;
+      for (const classroomId of [...new Set(waiting.map((k) => k.classroomId))]) {
+        sent += (await api.post<{ sent: number }>(`/api/signups/${signup.eventId}/remind`, { classroomId })).sent;
+      }
+      setDone(`Reminded ${sent} ${sent === 1 ? 'parent' : 'parents'}`);
+    } catch (err) {
+      setDone(err instanceof ApiError ? err.message : 'Could not send the reminder.');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (done) return <span className="self-center text-xs font-medium text-sage-dark">{done}</span>;
+  return (
+    <Button size="sm" loading={busy} onClick={() => void remind()}>
+      Remind {waiting.length} {waiting.length === 1 ? 'family' : 'families'}
+    </Button>
+  );
 }
