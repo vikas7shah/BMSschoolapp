@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { Newsletter } from '@bms/shared';
 import { ApiError, api } from '@/lib/api';
 import { useSession } from '@/lib/session';
@@ -15,9 +16,17 @@ import { Banner, Card, PageHeader } from '@/components/ui';
  * their own additions.
  */
 export default function CurriculumPage() {
+  // useSearchParams needs a Suspense boundary in a static export.
+  return <Suspense><CurriculumView /></Suspense>;
+}
+
+/**
+ * The group to open comes from the link (?group=…), read through Next's
+ * router: on an in-app link the page can start before the address changes.
+ */
+function CurriculumView() {
   const { me, reload } = useSession();
-  const [initialGroup] = useState(() =>
-    typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get('group'));
+  const initialGroup = useSearchParams().get('group');
   const [allGroups, setAllGroups] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
