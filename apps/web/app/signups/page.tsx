@@ -1,14 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { clockRange, formatLong, formatShort } from '@bms/shared';
 import { ApiError, api, type Signup, type SignupSlotView } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { shownSignup } from '@/lib/features';
 import { Shell } from '@/components/shell';
 import { Banner, Button, Card, EmptyState, PageHeader, Skeleton } from '@/components/ui';
-
-const param = (k: string) => (typeof window === 'undefined' ? null : new URLSearchParams(window.location.search).get(k));
 
 /** Times grouped by day, in order. */
 function byDay(slots: SignupSlotView[]): [string, SignupSlotView[]][] {
@@ -24,9 +23,19 @@ function byDay(slots: SignupSlotView[]): [string, SignupSlotView[]][] {
  * see the whole sheet, and the office can seat, move and remove families.
  */
 export default function SignupsPage() {
+  // useSearchParams needs a Suspense boundary in a static export.
+  return <Suspense><SignupsView /></Suspense>;
+}
+
+/**
+ * Which sign-up comes from the link (?event=…), read through Next's router:
+ * on an in-app link the page can start before the address bar has changed.
+ */
+function SignupsView() {
   const { me } = useSession();
+  const params = useSearchParams();
   const [list, setList] = useState<Signup[] | null>(null);
-  const [eventId] = useState(() => param('event'));
+  const eventId = params.get('event');
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -53,9 +62,9 @@ export default function SignupsPage() {
           <EmptyState title="Nothing to sign up for" body="When the school opens conference or observation sign-ups, they show here." />
         </>
       ) : isStaff ? (
-        <Sheet signup={signup} isAdmin={me.role === 'ADMIN'} rooms={me.role === 'ADMIN' ? signup.classroomIds : signup.classroomIds.filter((id) => me.teaches?.includes(id))} names={me.classroomNames} reload={load} />
+        <Sheet key={signup.eventId} signup={signup} isAdmin={me.role === 'ADMIN'} rooms={me.role === 'ADMIN' ? signup.classroomIds : signup.classroomIds.filter((id) => me.teaches?.includes(id))} names={me.classroomNames} reload={load} />
       ) : (
-        <Picker signup={signup} names={me.classroomNames} reload={load} />
+        <Picker key={signup.eventId} signup={signup} names={me.classroomNames} reload={load} />
       )}
     </Shell>
   );
@@ -64,7 +73,8 @@ export default function SignupsPage() {
 /* --------------------------------------------------------- a family's view */
 
 function Picker({ signup, names, reload }: { signup: Signup; names: Record<string, string>; reload: () => Promise<void> }) {
-  const [childId, setChildId] = useState(() => param('child') ?? signup.children[0]?.childId ?? null);
+  const linkedChild = useSearchParams().get('child');
+  const [childId, setChildId] = useState(() => linkedChild ?? signup.children[0]?.childId ?? null);
   const [busy, setBusy] = useState<string | null>(null);
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -179,7 +189,8 @@ function Picker({ signup, names, reload }: { signup: Signup; names: Record<strin
 function Sheet({ signup, isAdmin, rooms, names, reload }: {
   signup: Signup; isAdmin: boolean; rooms: string[]; names: Record<string, string>; reload: () => Promise<void>;
 }) {
-  const [room, setRoom] = useState(() => (rooms.includes(param('room') ?? '') ? param('room')! : rooms[0] ?? ''));
+  const linkedRoom = useSearchParams().get('room') ?? '';
+  const [room, setRoom] = useState(() => (rooms.includes(linkedRoom) ? linkedRoom : rooms[0] ?? ''));
   const [flash, setFlash] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
