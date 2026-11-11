@@ -18,14 +18,16 @@ export default function CalendarPage() {
   const { me } = useSession();
   const today = todayIn('America/New_York');
 
+  // What's still to come: an event drops off once its last day has passed,
+  // and a month with nothing left drops off with it.
   const months = useMemo(() => {
     const grouped = new Map<string, SchoolEvent[]>();
-    for (const e of SCHOOL_EVENTS) {
+    for (const e of SCHOOL_EVENTS.filter((x) => (x.endDate ?? x.date) >= today)) {
       const key = monthOf(e.date);
       grouped.set(key, [...(grouped.get(key) ?? []), e]);
     }
     return [...grouped.entries()].sort((a, b) => a[0].localeCompare(b[0]));
-  }, []);
+  }, [today]);
 
   const next = SCHOOL_EVENTS.find((e) => (e.endDate ?? e.date) >= today);
 
@@ -58,15 +60,13 @@ export default function CalendarPage() {
       )}
 
       <div className="space-y-4">
-        {months.map(([month, events]) => {
-          const done = events.every((e) => (e.endDate ?? e.date) < today);
-          return (
-            <Card key={month} className={done ? 'opacity-60' : ''}>
-              <h2 className="font-semibold text-ink">{monthLabel(month)}</h2>
-              <div className="mt-3"><EventList events={events} today={today} /></div>
-            </Card>
-          );
-        })}
+        {months.map(([month, events]) => (
+          <Card key={month}>
+            <h2 className="font-semibold text-ink">{monthLabel(month)}</h2>
+            <div className="mt-3"><EventList events={events} today={today} /></div>
+          </Card>
+        ))}
+        {!months.length && <p className="px-1 text-sm text-muted">That&apos;s everything for this school year.</p>}
       </div>
 
       <p className="mt-6 px-1 text-xs text-muted">
